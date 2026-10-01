@@ -1,5 +1,7 @@
 # AlphaSun 声波分析仪（AlphaSun-AudioSpectrumLab）
 
+**仓库：<https://github.com/net2net2net/AlphaSun-AudioSpectrumLab> · 发布包见 [Releases](https://github.com/net2net2net/AlphaSun-AudioSpectrumLab/releases)**
+
 > 本地麦克风驱动的实时音频频谱可视化 + 多维度专业参数分析 + 二级分析台（声谱图 / 离线 DSP / 多格式导出）+ 内置离线判别模型 + 历史缓存与报告。
 > 全部计算在浏览器/WebView 本地完成（Web Audio API），**不上传任何音频**，无外部 CDN 依赖。
 > **作者：阳光 net2net2net（VX：net2net）**
