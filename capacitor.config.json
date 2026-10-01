@@ -1,0 +1,9 @@
+{
+  "appId": "com.alphasun.audiolab",
+  "appName": "AlphaSun 声波分析仪",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": {
+    "webContentsDebuggingEnabled": true
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AlphaSun 声波分析仪</string>
+    <string name="title_activity_main">AlphaSun 声波分析仪</string>
+    <string name="package_name">com.alphasun.audiolab</string>
+    <string name="custom_url_scheme">com.alphasun.audiolab</string>
+</resources>

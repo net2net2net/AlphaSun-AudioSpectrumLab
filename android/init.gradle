@@ -1,0 +1,48 @@
+// Gradle 仓库镜像重定向 + 注入（国内加速）
+// 关键：Capacitor 生成的 settings.gradle 未声明 dependencyResolutionManagement 仓库，
+// 必须在 settings 层注入，否则 :app 无法解析 androidx 依赖（"no repositories are defined"）。
+def ALI_GOOGLE  = 'https://maven.aliyun.com/repository/google'
+def ALI_PUBLIC  = 'https://maven.aliyun.com/repository/public'
+def ALI_GRADLE  = 'https://maven.aliyun.com/repository/gradle-plugin'
+
+settingsEvaluated { settings ->
+  // pluginManagement：AGP 等 classpath 仓库
+  try {
+    settings.pluginManagement {
+      repositories {
+        maven { url ALI_GOOGLE }
+        maven { url ALI_PUBLIC }
+        maven { url ALI_GRADLE }
+        gradlePluginPortal()
+      }
+    }
+  } catch (e) { println "init: pluginManagement skip -> ${e.message}" }
+
+  // dependencyResolutionManagement：各模块依赖仓库（PREFER_SETTINGS 优先用 settings 层）
+  try {
+    settings.dependencyResolutionManagement {
+      repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+      repositories {
+        maven { url ALI_GOOGLE }
+        maven { url ALI_PUBLIC }
+        maven { url ALI_GRADLE }
+        google()
+        mavenCentral()
+      }
+    }
+  } catch (e) { println "init: drm skip -> ${e.message}" }
+}
+
+// 兜底：若项目层已声明仓库，将其重定向到镜像
+allprojects {
+  repositories {
+    all { repo ->
+      if (repo instanceof MavenArtifactRepository) {
+        def u = repo.url.toString()
+        if (u.contains('dl.google.com') || u.contains('maven.google.com')) repo.setUrl(ALI_GOOGLE)
+        else if (u.contains('repo1.maven.org') || u.contains('mavenCentral') || u.contains('jcenter')) repo.setUrl(ALI_PUBLIC)
+        else if (u.contains('plugins.gradle.org') || u.contains('gradlePluginPortal')) repo.setUrl(ALI_GRADLE)
+      }
+    }
+  }
+}

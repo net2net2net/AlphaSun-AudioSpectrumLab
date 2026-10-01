@@ -1,0 +1,36 @@
+# ---- 依赖 ----
+node_modules/
+
+# ---- 构建产物（发布到 GitHub Release，不进 git 历史）----
+dist/
+release/
+
+# ---- Electron / electron-builder 中间物 ----
+*.log
+electron.pid
+
+# ---- Android（Capacitor 原生工程本体要提交：含权限改造；只排除构建中间物）----
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+*.apk
+*.aab
+
+# ---- 派生目录：由 node sync-www.js / tools/cap-copy.js 从根目录 index.html 生成 ----
+# 单一真源原则 —— 只维护根目录 index.html，以下目录勿手改也勿入库
+www/
+android/app/src/main/assets/public/
+ios/App/App/public/
+ios/App/Pods/
+ios/App/build/
+
+# ---- 陈旧文件隔离区 / 工具内部目录 ----
+.stale-quarantine/
+.workbuddy/
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini

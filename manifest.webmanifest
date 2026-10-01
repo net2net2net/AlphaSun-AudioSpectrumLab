@@ -1,0 +1,14 @@
+{
+  "name": "AlphaSun 声波分析仪",
+  "short_name": "声波分析仪",
+  "description": "本地实时音频频谱分析与智能分类（麦克风驱动，无外部依赖）",
+  "start_url": "index.html",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#04060d",
+  "theme_color": "#05070f",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

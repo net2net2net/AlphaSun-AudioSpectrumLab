@@ -1,0 +1,74 @@
+{
+  "name": "alphasun-audio-spectrum-lab",
+  "version": "2.13.0",
+  "private": true,
+  "description": "AlphaSun 声波分析仪 — 实时音频频谱与智能分类（麦克风驱动，本地计算）",
+  "author": "阳光 net2net2net (VX: net2net)",
+  "homepage": "https://alphasun.example.com",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "check": "node tools/check.js",
+    "algo": "node tools/algo-selftest.js",
+    "bump": "node tools/bump-version.js",
+    "dist": "node tools/check.js && electron-builder --win --linux --mac",
+    "dist:win": "node tools/check.js && node tools/build-win.js",
+    "dist:portable": "node tools/check.js && electron-builder --win portable",
+    "dist:linux": "node tools/check.js && electron-builder --linux",
+    "dist:mac": "node tools/check.js && electron-builder --mac",
+    "sync": "node sync-www.js && node tools/cap-copy.js && node tools/check.js"
+  },
+  "build": {
+    "appId": "com.alphasun.audiolab",
+    "productName": "AlphaSun 声波分析仪",
+    "files": [
+      "index.html",
+      "main.js",
+      "preload.js",
+      "sw.js",
+      "manifest.webmanifest",
+      "assets/**",
+      "desktop/**",
+      "mobile/**"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": true
+    },
+    "portable": {
+      "artifactName": "AlphaSun-AudioLab-${version}-portable.${ext}"
+    },
+    "linux": {
+      "target": [
+        "tar.gz"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Audio",
+      "maintainer": "阳光 net2net2net",
+      "artifactName": "AlphaSun-AudioLab-${version}-linux-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.music",
+      "hardenedRuntime": true,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "AlphaSun 声波分析仪需要访问麦克风，以进行实时音频频谱分析与智能分类。"
+      },
+      "artifactName": "AlphaSun-AudioLab-${version}-mac.${ext}"
+    }
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.2.2",
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  }
+}
