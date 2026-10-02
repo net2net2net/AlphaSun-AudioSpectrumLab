@@ -244,6 +244,65 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   chk('停止后自动出报告开关存在', env.hasAutoRep, 'envAutoRep=' + env.hasAutoRep);
   await page.evaluate(() => { const el = document.getElementById('envMask'); if (el) el.classList.remove('on'); });
 
+  console.log('\n[9] 声波警戒值守台（v2.17.0：全屏值守 / 波形+环形 / 三色警戒灯 / 事件记录 / 摄像头 / 推送）');
+  await page.evaluate(() => { const m = document.getElementById('toolsMenu'); if (m) m.classList.remove('on'); });
+  await page.click('#toolsBtn');
+  await page.waitForTimeout(200);
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('#toolsMenu button[data-tool]')).find(x => x.dataset.tool === '声波警戒值守');
+    if (b) b.click();
+  });
+  await page.waitForTimeout(400);
+  const gd = await page.evaluate(() => {
+    const gs = document.getElementById('guardScreen');
+    const app = document.getElementById('appRoot');
+    const cvSize = id => { const c = document.getElementById(id); const r = c ? c.getBoundingClientRect() : null; return !!(c && r && r.width > 0 && r.height > 0); };
+    return {
+      hasScreen: !!gs,
+      hidden: !!gs && getComputedStyle(gs).display === 'none',
+      // 红线：必须 body 直属。放进 .app 会被其 z-index/zoom 层叠上下文困住 → 全屏浮层被主画布遮挡
+      bodyChild: !!gs && gs.parentElement === document.body,
+      notInApp: !!gs && !!app && !app.contains(gs),
+      lamps: ['gLampAlarm', 'gLampWarn', 'gLampNormal'].filter(id => !!document.getElementById(id)).length,
+      // 值守台默认 display:none，隐藏元素 rect 恒为 0 → 必须先临时显示再量尺寸
+      waveOk: (gs.style.display = 'flex', cvSize('gWave')),
+      ringOk: cvSize('gRing'),
+      topOk: ['gTime', 'gDate', 'gDb', 'gState', 'gDur', 'gExit'].filter(id => !!document.getElementById(id)).length,
+      evOk: !!document.getElementById('gEvList') && !!document.getElementById('gEvExpAll') && !!document.getElementById('gEvClear'),
+      camOk: ['alertCam', 'alertCamShot', 'alertCamRec', 'alertCamDev'].filter(id => !!document.getElementById(id)).length,
+      hasFull: !!document.getElementById('alertFull'),
+      hasNotify: !!document.getElementById('alertNotifyBtn') && !!document.getElementById('alertNotifyCfg'),
+      hasAuto: !!document.getElementById('alertAuto') && !!document.getElementById('alertEval'),
+      // v2.17.0 起判定改为「本底 + 余量」，不再有方向选择（旧 alertDir 已移除）
+      noDir: !document.getElementById('alertDir'),
+    };
+  });
+  chk('全屏值守台存在且默认隐藏', gd.hasScreen && gd.hidden, 'hasScreen=' + gd.hasScreen + ' hidden=' + gd.hidden);
+  chk('值守台为 body 直属（避开 .app 层叠上下文）', gd.bodyChild && gd.notInApp,
+    'bodyChild=' + gd.bodyChild + ' notInApp=' + gd.notInApp);
+  chk('三色警戒灯齐备（红告警/黄预警/蓝正常）', gd.lamps === 3, 'lamps=' + gd.lamps);
+  chk('值守波形与环形仪表已渲染出尺寸', gd.waveOk && gd.ringOk, 'wave=' + gd.waveOk + ' ring=' + gd.ringOk);
+  await page.evaluate(() => { const gs = document.getElementById('guardScreen'); if (gs) gs.style.display = 'none'; });
+  chk('顶部时间/日期/声级/状态/时长/退出齐备', gd.topOk === 6, 'top=' + gd.topOk);
+  chk('底部事件区含列表与导出/清空', gd.evOk, 'evOk=' + gd.evOk);
+  chk('摄像头告警记录控件齐备', gd.camOk === 4, 'cam=' + gd.camOk);
+  chk('本底自动评估与全屏开关存在', gd.hasAuto && gd.hasFull, 'auto=' + gd.hasAuto + ' full=' + gd.hasFull);
+  chk('告警推送入口存在（企业微信/钉钉/飞书等）', gd.hasNotify, 'notify=' + gd.hasNotify);
+  chk('已移除失效的「方向」选择器（改为本底+余量判定）', gd.noDir, 'noDir=' + gd.noDir);
+  // 交互：点「告警推送设置」应展开配置区（DOM 行为，不依赖麦克风）
+  const ntToggle = await page.evaluate(() => {
+    const btn = document.getElementById('alertNotifyBtn'), box = document.getElementById('alertNotifyCfg');
+    if (!btn || !box) return null;
+    const before = getComputedStyle(box).display;
+    btn.click();
+    const after = getComputedStyle(box).display;
+    return { before: before, after: after, hasWecom: !!document.getElementById('ntWecom'), hasPhone: !!document.getElementById('ntPhone') };
+  });
+  chk('推送设置可展开且含通道与手机号配置',
+    !!ntToggle && ntToggle.before === 'none' && ntToggle.after !== 'none' && ntToggle.hasWecom && ntToggle.hasPhone,
+    JSON.stringify(ntToggle));
+  await page.evaluate(() => { const el = document.getElementById('alertMask'); if (el) el.classList.remove('on'); });
+
   await app.close();
 
   const pass = results.filter(r => r.ok).length, fail = results.length - pass;
