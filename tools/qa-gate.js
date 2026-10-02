@@ -144,22 +144,73 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
     const b = Array.from(document.querySelectorAll('#toolsMenu button[data-tool]')).find(x => x.dataset.tool === '会议语音转写');
     if (b) b.click();
   });
-  await page.waitForTimeout(1800);   // 等引擎探测：HEAD model.tar.gz（+ 可能注入 5.8MB 运行时）
+  await page.waitForTimeout(1800);   // 等引擎探测：云端 Key 状态 / HEAD 离线模型（+ 可能注入 5.8MB 运行时）
   const eng = await page.evaluate(() => {
     const e = document.getElementById('asrEng');
-    return { text: e ? e.textContent.trim() : '(无此元素)', voskGlobal: typeof window.Vosk !== 'undefined' };
+    const lang = document.getElementById('asrLang');
+    const mode = document.getElementById('asrMode');
+    const cv = document.getElementById('asrWave');
+    const r = cv ? cv.getBoundingClientRect() : null;
+    return {
+      text: e ? e.textContent.trim() : '(无此元素)',
+      voskGlobal: typeof window.Vosk !== 'undefined',
+      cloudBridge: typeof window.asrCloud !== 'undefined',
+      langOpts: lang ? Array.from(lang.options).map(o => o.value) : [],
+      modeOpts: mode ? Array.from(mode.options).map(o => o.value) : [],
+      waveOk: !!(cv && r && r.width > 0 && r.height > 0),
+      hasSaveWav: !!document.getElementById('asrSaveWav'),
+      hasKeyBtn: !!document.getElementById('asrKeyBtn'),
+      hasSeg: !!document.getElementById('asrSeg'),
+    };
   });
-  const settled = /Vosk 离线|Web Speech（在线）|不支持/.test(eng.text);
+  const settled = !eng.text.includes('检测中') && /云端|本地|Web Speech|不支持/.test(eng.text);
   chk('ASR 引擎完成探测并如实标注（未卡在「检测中」）', settled, 'badge="' + eng.text + '"');
-  // 本仓库不随包发布 42MB 离线模型 → 引擎必须显示在线，绝不能谎报「Vosk 离线」
+  // 诚实性：未配置 Key 时不得显示成「阿里云 DashScope」可用态
+  chk('未配置云端 Key 时不谎报云端可用', !(eng.text.includes('DashScope') && !eng.text.includes('未配置')),
+    'badge="' + eng.text + '"，云端桥=' + eng.cloudBridge);
+  // 本仓库不随包发布 42MB 离线模型 → 引擎绝不能谎报「Vosk 离线」
   chk('未放置离线模型时不谎报 Vosk 离线引擎', !eng.text.includes('Vosk 离线'),
     'badge="' + eng.text + '"，Vosk运行时已加载=' + eng.voskGlobal);
+  // v2.15.0 新增：三语 / 双模式 / 波形 / 原始录音保存 / 云端设置
+  chk('语言下拉含三语（zh/yue/en）', ['zh', 'yue', 'en'].every(v => eng.langOpts.includes(v)), eng.langOpts.join(','));
+  chk('模式下拉含云端与本地', eng.modeOpts.includes('cloud') && eng.modeOpts.includes('local'), eng.modeOpts.join(','));
+  chk('转写波形画布已渲染出尺寸', eng.waveOk, 'canvas 有尺寸=' + eng.waveOk);
+  chk('原始录音保存入口存在', eng.hasSaveWav, 'asrSaveWav=' + eng.hasSaveWav);
+  chk('云端设置入口存在', eng.hasKeyBtn, 'asrKeyBtn=' + eng.hasKeyBtn);
+  chk('分段转写段长选择存在', eng.hasSeg, 'asrSeg=' + eng.hasSeg);
   await page.evaluate(() => { const el = document.getElementById('asrMask'); if (el) el.classList.remove('on'); });
 
   console.log('\n[6] 面板运行期错误复查（打开三面板后）');
   const diag2 = await page.evaluate(() => window.__diag ? window.__diag.summary() : null);
   chk('交互后仍零 pageerror', pageErrs.length === 0, pageErrs.join(' | ').slice(0, 300));
   chk('交互后零 console.error', diag2 && diag2.errors === 0, diag2 ? ('errors=' + diag2.errors + ' warns=' + diag2.warns) : '');
+
+  console.log('\n[7] 云端转写通道（主进程 IPC 往返 + 缺 Key 必须明确报错）');
+  const cloud = await page.evaluate(async () => {
+    if (!window.asrCloud) return { skip: true };
+    // 构造 0.5 秒静音 16bit/16kHz 单声道 WAV，仅用于打通 IPC 往返
+    const n = 8000, ab = new ArrayBuffer(44 + n * 2), dv = new DataView(ab);
+    const wr = (o, t) => { for (let i = 0; i < t.length; i++) dv.setUint8(o + i, t.charCodeAt(i)); };
+    wr(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); wr(8, 'WAVE'); wr(12, 'fmt ');
+    dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+    dv.setUint32(24, 16000, true); dv.setUint32(28, 32000, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+    wr(36, 'data'); dv.setUint32(40, n * 2, true);
+    const u = new Uint8Array(ab); let s = '';
+    for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+    const st = await window.asrCloud.keyStatus();
+    const r = await window.asrCloud.transcribe({ wavBase64: btoa(s), lang: 'zh' });
+    return { skip: false, status: st, result: r };
+  });
+  if (cloud.skip) {
+    chk('非桌面端正确缺失云端桥（前端降级路径）', true, 'window.asrCloud 不存在 → 降级到 Web Speech');
+  } else {
+    chk('云端 Key 状态查询走通 IPC', !!(cloud.status && typeof cloud.status.hasKey === 'boolean'),
+      JSON.stringify(cloud.status));
+    // 红线：缺 API Key 必须明确报错，绝不静默返回空结果
+    chk('未配置 Key 时云端转写明确报错（不静默返回空）',
+      !!(cloud.result && cloud.result.ok === false && cloud.result.error === 'NO_KEY'),
+      JSON.stringify(cloud.result).slice(0, 180));
+  }
 
   await app.close();
 
