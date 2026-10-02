@@ -23,6 +23,15 @@ contextBridge.exposeInMainWorld('asSys', {
   }
 });
 
+// 声波警戒值守桥：全屏切换、事件媒体落盘、告警通知推送（凭据只在主进程/本机配置里）
+contextBridge.exposeInMainWorld('guard', {
+  available: true,
+  fullscreen: (on) => ipcRenderer.invoke('win:fullscreen', on),
+  saveMedia: (args) => ipcRenderer.invoke('guard:saveMedia', args),
+  listMedia: () => ipcRenderer.invoke('guard:listMedia'),
+  notify: (args) => ipcRenderer.invoke('guard:notify', args),
+});
+
 // 云端转写桥：渲染进程只传 WAV(base64) 与语言，API Key 始终留在主进程。
 contextBridge.exposeInMainWorld('asrCloud', {
   available: true,
