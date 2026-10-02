@@ -671,7 +671,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.17.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.17.1</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1714,7 +1714,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.17.0',APP_BUILD='20261002';
+const APP_VER='2.17.1',APP_BUILD='20261002';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';}catch(e){}
 // ---- 系统监视（需求#4：顶栏 CPU/内存。桌面版经 preload 桥取真实系统值；网页/移动端无权限显示 —） ----
 function sysTick(){
@@ -5165,23 +5165,30 @@ async function asrCapStart(){
   if(ctx.state!=='running')await ctx.resume().catch(()=>{});
   ASR_CAP.sr=ctx.sampleRate||16000;
   const src=ASR_CAP.src=ctx.createMediaStreamSource(st);
-  const proc=ASR_CAP.proc=ctx.createScriptProcessor(4096,1,1);
-  proc.onaudioprocess=ev=>{
-    const d=ev.inputBuffer.getChannelData(0);
+  // ⚠ v2.17.0 修复：原用 ScriptProcessorNode（已废弃），实测在本机 Electron 28 下
+  //   一开始录音就导致渲染进程崩溃（值守台同款问题）。统一改用 AudioWorklet 直采 PCM（as-rec）。
+  if(!(window.AudioWorkletNode&&ctx.audioWorklet))throw new Error('当前环境不支持 AudioWorklet，无法录音');
+  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([ASREC_SRC],{type:'application/javascript'})));
+  const node=ASR_CAP.proc=new AudioWorkletNode(ctx,'as-rec');
+  const mute=ASR_CAP.mute=ctx.createGain();mute.gain.value=0;   // 静音支路：只为让节点被拉取，不回放
+  node.port.onmessage=e=>{
+    const d=e.data;if(!d)return;
     ASR_CAP.chunks.push(new Float32Array(d));ASR_CAP.len+=d.length;
     asrWaveFeed(d);
-    if(asrVosk.rec)try{asrVosk.rec.acceptWaveform(ev.inputBuffer);}catch(e){diagAdd('warn','Vosk acceptWaveform 异常：'+((e&&e.message)||e));}
+    if(asrVosk.rec){try{const ab=ctx.createBuffer(1,d.length,ctx.sampleRate);ab.copyToChannel(d,0);
+      asrVosk.rec.acceptWaveform(ab);}catch(e){diagAdd('warn','Vosk acceptWaveform 异常：'+((e&&e.message)||e));}}
     asrMaybeSubmit();
   };
-  src.connect(proc);proc.connect(ctx.destination);
+  src.connect(node);node.connect(mute);mute.connect(ctx.destination);
   return st;
 }
 function asrCapStop(){
-  try{if(ASR_CAP.proc){ASR_CAP.proc.onaudioprocess=null;ASR_CAP.proc.disconnect();}}catch(_){}
+  try{if(ASR_CAP.proc){ASR_CAP.proc.port.onmessage=null;ASR_CAP.proc.disconnect();}}catch(_){}
+  try{if(ASR_CAP.mute)ASR_CAP.mute.disconnect();}catch(_){}
   try{if(ASR_CAP.src)ASR_CAP.src.disconnect();}catch(_){}
   try{if(ASR_CAP.stream)ASR_CAP.stream.getTracks().forEach(t=>t.stop());}catch(_){}
   try{if(ASR_CAP.ctx)ASR_CAP.ctx.close().catch(()=>{});}catch(_){}
-  ASR_CAP.proc=null;ASR_CAP.src=null;ASR_CAP.stream=null;ASR_CAP.ctx=null;
+  ASR_CAP.proc=null;ASR_CAP.mute=null;ASR_CAP.src=null;ASR_CAP.stream=null;ASR_CAP.ctx=null;
 }
 /* ---------- 实时波形 ---------- */
 const ASR_WAVE=new Float32Array(600);let asrWpos=0,asrWaveRaf=null;
