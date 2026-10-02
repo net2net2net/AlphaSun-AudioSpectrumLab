@@ -118,6 +118,10 @@
     padding:10px 12px;font-size:14px;line-height:1.7;color:#eaf6ff;white-space:pre-wrap}
   .asrout .fin{color:#cfe6ff} .asrout .it{color:var(--dim);font-style:italic}
   .badge2{font-size:10px;color:#ffd27a;border:1px solid rgba(255,210,122,.4);border-radius:6px;padding:0 5px;margin-left:6px}
+  .asrwavebox{position:relative;margin:8px 0;border:1px solid var(--brd);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.28)}
+  .asrwave{display:block;width:100%;height:72px}
+  .asrwavemeta{position:absolute;right:8px;top:6px;display:flex;gap:10px;font-size:11px;color:#9fd7ff;
+    background:rgba(4,10,20,.55);border-radius:6px;padding:1px 6px}
   @keyframes alFlash{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,93,115,0)}50%{box-shadow:inset 0 0 0 6px rgba(255,93,115,.65)}}
   body.alarm{animation:alFlash .5s ease-in-out infinite}
   .tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -602,7 +606,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.14.2</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.15.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1645,7 +1649,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.14.2',APP_BUILD='20261002';
+const APP_VER='2.15.0',APP_BUILD='20261002';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';}catch(e){}
 // ---- 系统监视（需求#4：顶栏 CPU/内存。桌面版经 preload 桥取真实系统值；网页/移动端无权限显示 —） ----
 function sysTick(){
@@ -4394,98 +4398,327 @@ $('alertExpLog').addEventListener('click',()=>{const L=$('alertLog');if(!L||!L.c
   let t='AlphaSun 声波警戒值守日志\n生成时间 '+new Date().toLocaleString()+'\n\n';for(const c of L.children)t+=c.textContent+'\n';
   l2Dl(new Blob([t],{type:'text/plain'}),'alert_log_'+toolTs()+'.txt');});
 
-// ---- ③ 会议语音转写 ----
-let asrOn=false,asrFinal='',asrT0=null;
-/* v2.14.2 引擎可插拔：asrEngine = probing | vosk | web | none
-   离线（Vosk）优先；模型缺失或任一环节失败 → 自动回退在线（Web Speech）并如实标注引擎。*/
-let asrEngine='probing';
-const VOSK_MODEL='assets/vosk/model.tar.gz',VOSK_RT='assets/vosk/vosk.js';
-let asrVosk={model:null,rec:null,ctx:null,proc:null,src:null,stream:null};
+// ---- ③ 会议语音转写（v2.15.0：三语 + 云端/本地双模式 + 实时波形 + 原始录音保存）----
+let asrOn=false,asrFinal='',asrT0=null,asrSents=[];
+/* 引擎取值与诚实标注（不得谎报可用）：
+     dash        = 云端阿里云 DashScope（已配置 Key）
+     dash-nokey  = 云端通道存在但未配置 API Key
+     vosk        = 本地 Vosk 离线（模型已就位）
+     web         = 浏览器内置 Web Speech（在线）
+     none        = 当前环境无可用引擎 */
+let asrEngine='probing',asrKeyHas=false,asrSegBusy=false;
+const VOSK_RT='assets/vosk/vosk.js';
+// Vosk 官方只有中英文模型，无粤语模型（models 列表已核实）→ 粤语本地不可用，必须走云端
+const VOSK_MODEL={zh:'assets/vosk/model-zh.tar.gz',en:'assets/vosk/model-en.tar.gz'};
+function asrSR(){return window.SpeechRecognition||window.webkitSpeechRecognition;}
+function asrLangCode(){const v=($('asrLang')&&$('asrLang').value)||'zh';return ({zh:'zh',yue:'yue',en:'en'})[v]||'zh';}
+function asrWebLang(){return ({zh:'zh-CN',yue:'yue-Hant-HK',en:'en-US'})[asrLangCode()]||'zh-CN';}
 function asrSetEng(t){const e=$('asrEng');if(e)e.textContent=t;}
+function asrSetKeyStat(t){const e=$('asrKeyStat');if(e)e.textContent=t;}
 function asrPaintEng(){
-  if(asrEngine==='vosk')asrSetEng('引擎：Vosk 离线（本地模型）');
-  else if(asrEngine==='web')asrSetEng('引擎：Web Speech（在线）');
-  else asrSetEng('引擎：不支持');}
+  if(asrEngine==='dash')asrSetEng('引擎：云端 · 阿里云 DashScope');
+  else if(asrEngine==='dash-nokey')asrSetEng('引擎：云端 · 未配置 API Key');
+  else if(asrEngine==='vosk')asrSetEng('引擎：本地 · Vosk 离线');
+  else if(asrEngine==='web')asrSetEng('引擎：Web Speech（浏览器在线）');
+  else asrSetEng('引擎：不支持');
+}
+/* ---------- 采集器：云端/本地共用，累积 PCM 供波形、WAV、Vosk 使用 ---------- */
+const ASR_CAP={ctx:null,stream:null,src:null,proc:null,chunks:[],len:0,sr:16000,segBase:0};
 function asrLoadScript(src){return new Promise((res,rej)=>{
   const s=document.createElement('script');s.src=src;s.onload=res;
   s.onerror=()=>rej(new Error('运行时加载失败：'+src));document.head.appendChild(s);});}
-async function asrProbeOffline(){
-  try{const r=await fetch(VOSK_MODEL,{method:'HEAD'});if(!r.ok)return false;}catch(_){return false;}
+async function asrCapStart(){
+  const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1,sampleRate:16000}});
+  ASR_CAP.stream=st;ASR_CAP.chunks=[];ASR_CAP.len=0;ASR_CAP.segBase=0;
+  const Ctx=window.AudioContext||window.webkitAudioContext;
+  const ctx=ASR_CAP.ctx=new Ctx();
+  if(ctx.state!=='running')await ctx.resume().catch(()=>{});
+  ASR_CAP.sr=ctx.sampleRate||16000;
+  const src=ASR_CAP.src=ctx.createMediaStreamSource(st);
+  const proc=ASR_CAP.proc=ctx.createScriptProcessor(4096,1,1);
+  proc.onaudioprocess=ev=>{
+    const d=ev.inputBuffer.getChannelData(0);
+    ASR_CAP.chunks.push(new Float32Array(d));ASR_CAP.len+=d.length;
+    asrWaveFeed(d);
+    if(asrVosk.rec)try{asrVosk.rec.acceptWaveform(ev.inputBuffer);}catch(e){diagAdd('warn','Vosk acceptWaveform 异常：'+((e&&e.message)||e));}
+    asrMaybeSubmit();
+  };
+  src.connect(proc);proc.connect(ctx.destination);
+  return st;
+}
+function asrCapStop(){
+  try{if(ASR_CAP.proc){ASR_CAP.proc.onaudioprocess=null;ASR_CAP.proc.disconnect();}}catch(_){}
+  try{if(ASR_CAP.src)ASR_CAP.src.disconnect();}catch(_){}
+  try{if(ASR_CAP.stream)ASR_CAP.stream.getTracks().forEach(t=>t.stop());}catch(_){}
+  try{if(ASR_CAP.ctx)ASR_CAP.ctx.close().catch(()=>{});}catch(_){}
+  ASR_CAP.proc=null;ASR_CAP.src=null;ASR_CAP.stream=null;ASR_CAP.ctx=null;
+}
+/* ---------- 实时波形 ---------- */
+const ASR_WAVE=new Float32Array(600);let asrWpos=0,asrWaveRaf=null;
+function asrWaveFeed(d){
+  const PER=8,n=d.length;
+  for(let k=0;k<PER;k++){
+    const a=Math.floor(k*n/PER),b=Math.floor((k+1)*n/PER);
+    let mx=0;for(let i=a;i<b;i++){const v=d[i];if(v>mx)mx=v;if(-v>mx)mx=-v;}
+    ASR_WAVE[asrWpos]=mx;asrWpos=(asrWpos+1)%ASR_WAVE.length;
+  }
+  const lv=$('asrLvl');if(lv){let r=0;for(let i=0;i<n;i+=16)r+=d[i]*d[i];
+    const rms=Math.sqrt(r/Math.ceil(n/16));lv.textContent=rms>0.0005?(20*Math.log10(rms)).toFixed(1)+' dB':'静音';}
+}
+function asrWaveDraw(){
+  const tm=$('asrTimer');
+  if(tm){const el=asrOn&&asrT0?((Date.now()-asrT0.getTime())/1000)|0:0;
+    const p=n=>(''+(n|0)).padStart(2,'0');tm.textContent=p(el/60)+':'+p(el%60);}
+  const cv=$('asrWave');if(!cv)return;
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth||520,h=cv.clientHeight||72;
+  if(cv.width!==Math.round(w*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);g.fillStyle='rgba(0,0,0,.30)';g.fillRect(0,0,w,h);
+  const mid=h/2;
+  g.strokeStyle='rgba(120,180,255,.22)';g.beginPath();g.moveTo(0,mid);g.lineTo(w,mid);g.stroke();
+  const n=ASR_WAVE.length,bw=w/n;
+  g.fillStyle=asrOn?'#5fd0ff':'rgba(95,208,255,.35)';
+  for(let i=0;i<n;i++){
+    const v=Math.max(-1,Math.min(1,ASR_WAVE[i]));
+    const bh=Math.max(1,Math.abs(v)*(h/2-3));
+    g.fillRect(i*bw,mid-bh/2,Math.max(1,bw-0.6),bh);
+  }
+}
+function asrWaveStart(){if(asrWaveRaf)return;const lp=()=>{asrWaveDraw();asrWaveRaf=requestAnimationFrame(lp);};lp();}
+function asrWaveStop(){if(asrWaveRaf)cancelAnimationFrame(asrWaveRaf);asrWaveRaf=null;}
+/* ---------- WAV 编码与 base64 ---------- */
+function capSlice(from,to){
+  const out=new Float32Array(Math.max(0,to-from));let w=0,idx=0;
+  for(const c of ASR_CAP.chunks){
+    const cs=idx,ce=idx+c.length,a=Math.max(from,cs),b=Math.min(to,ce);
+    if(b>a){out.set(c.subarray(a-cs,b-cs),w);w+=b-a;}
+    idx=ce;if(idx>=to)break;
+  }
+  return out;
+}
+function asrWavBlob(f32,sr){
+  const sr2=sr||ASR_CAP.sr||16000;
+  const ab=new ArrayBuffer(44+f32.length*2),dv=new DataView(ab);
+  const wr=(o,t)=>{for(let i=0;i<t.length;i++)dv.setUint8(o+i,t.charCodeAt(i));};
+  wr(0,'RIFF');dv.setUint32(4,36+f32.length*2,true);wr(8,'WAVE');
+  wr(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,sr2,true);dv.setUint32(28,sr2*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);
+  wr(36,'data');dv.setUint32(40,f32.length*2,true);
+  let p=44;
+  for(let i=0;i<f32.length;i++){const v=Math.max(-1,Math.min(1,f32[i]));dv.setInt16(p,v<0?v*0x8000:v*0x7fff,true);p+=2;}
+  return new Blob([ab],{type:'audio/wav'});
+}
+function ab2b64(ab){
+  const u=new Uint8Array(ab);let out='';const CH=0x8000;
+  for(let i=0;i<u.length;i+=CH)out+=String.fromCharCode.apply(null,u.subarray(i,i+CH));
+  return btoa(out);
+}
+async function asrSaveWavBlob(blob,silent){
+  if(!blob||blob.size<=44){toast('暂无录音内容');return;}
+  const nm='alphasun_rec_'+toolTs()+'.wav';
+  if(window.asrCloud&&window.asrCloud.saveWav){
+    try{
+      const b64=ab2b64(await blob.arrayBuffer());
+      const r=await window.asrCloud.saveWav({name:nm,wavBase64:b64});
+      if(r&&r.ok){if(!silent)toast('已保存原始录音：'+r.path);diagAdd('info','原始录音已保存：'+r.path);return;}
+      diagAdd('warn','保存录音失败：'+((r&&r.message)||'未知'));
+    }catch(e){diagAdd('warn','保存录音异常：'+((e&&e.message)||e));}
+  }
+  l2Dl(blob,nm);if(!silent)toast('已导出原始录音 wav');
+}
+/* ---------- 云端转写（阿里云 DashScope，桌面端经主进程代理）---------- */
+async function asrCloudSubmit(f32,startMs){
+  if(!window.asrCloud){$('asrStat').textContent='⚠️ 浏览器模式不支持云端大模型转写';return;}
+  if(!f32||f32.length<ASR_CAP.sr*0.4)return;
+  const blob=asrWavBlob(f32);
+  $('asrStat').textContent='☁️ 云端转写中…';
+  let r=null;
+  try{
+    r=await window.asrCloud.transcribe({wavBase64:ab2b64(await blob.arrayBuffer()),lang:asrLangCode()});
+  }catch(e){diagAdd('error','云端转写调用异常：'+((e&&e.message)||e));
+    $('asrStat').textContent='⚠️ 云端转写异常：'+((e&&e.message)||e);return;}
+  if(r&&r.ok){
+    const ss=r.sentences||[],t=(r.text||'').trim();
+    const base=startMs||0;
+    for(const x of ss)asrSents.push({text:x.text||'',s:base+(x.begin_time||0),e:base+(x.end_time||0)});
+    if(t){asrFinal+=(asrFinal?'\n':'')+t;renderAsr('');}
+    $('asrStat').textContent='☁️ 云端转写完成（'+ss.length+' 句）';
+  }else{
+    const msg=(r&&r.message)||'未知错误';
+    diagAdd('error','云端转写失败：'+msg);
+    $('asrStat').textContent='⚠️ 云端转写失败：'+msg;
+    toast('⚠️ 云端转写失败，详见状态栏');
+  }
+}
+async function asrMaybeSubmit(){
+  if(asrEngine!=='dash'||asrSegBusy||!asrOn)return;
+  const cb=$('asrAutoSeg');if(cb&&!cb.checked)return;
+  const seg=parseInt(($('asrSeg')&&$('asrSeg').value)||'30',10);
+  const need=Math.max(5,seg)*ASR_CAP.sr;
+  if(ASR_CAP.len-ASR_CAP.segBase<need)return;
+  const to=ASR_CAP.segBase+need;
+  const startMs=Math.round(ASR_CAP.segBase/ASR_CAP.sr*1000);
+  const f32=capSlice(ASR_CAP.segBase,to);
+  ASR_CAP.segBase=to;
+  asrSegBusy=true;
+  try{await asrCloudSubmit(f32,startMs);}finally{asrSegBusy=false;}
+  // 未勾选「保留完整录音」时丢弃已提交段，避免长时录制内存无界增长
+  const kf=$('asrKeepWav');
+  if(kf&&!kf.checked){
+    const rest=capSlice(ASR_CAP.segBase,ASR_CAP.len);
+    ASR_CAP.chunks=rest.length?[rest]:[];ASR_CAP.len=rest.length;ASR_CAP.segBase=0;
+  }
+}
+/* ---------- 引擎探测 ---------- */
+async function asrProbeOffline(lang){
+  const url=VOSK_MODEL[lang];
+  if(!url)return false;                       // 粤语等无官方模型 → 直接不可用
+  try{const r=await fetch(url,{method:'HEAD'});if(!r.ok)return false;}catch(_){return false;}
   if(!window.Vosk){try{await asrLoadScript(VOSK_RT);}
-    catch(e){diagAdd('warn','Vosk 运行时加载失败，回退在线引擎：'+((e&&e.message)||e));return false;}}
-  return !!(window.Vosk&&window.Vosk.createModel);}
+    catch(e){diagAdd('warn','Vosk 运行时加载失败：'+((e&&e.message)||e));return false;}}
+  return !!(window.Vosk&&window.Vosk.createModel);
+}
 async function asrDetect(){
-  if(asrEngine!=='probing'){asrPaintEng();return;}
   asrSetEng('引擎：检测中…');
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  const off=await asrProbeOffline();
-  asrEngine=off?'vosk':(SR?'web':'none');
-  asrPaintEng();}
+  const mode=($('asrMode')&&$('asrMode').value)||'cloud';
+  const lang=asrLangCode();
+  if(mode==='cloud'){
+    if(window.asrCloud){
+      let st={hasKey:false};
+      try{st=await window.asrCloud.keyStatus();}catch(e){diagAdd('warn','云端 Key 状态查询失败：'+((e&&e.message)||e));}
+      asrKeyHas=!!st.hasKey;
+      asrEngine=asrKeyHas?'dash':'dash-nokey';
+      asrSetKeyStat(asrKeyHas?('已配置（'+((st.source==='env')?'环境变量':'本机配置')+'）'):'未配置 API Key（点「云端设置」填入）');
+    }else{
+      asrEngine=asrSR()?'web':'none';
+      asrSetKeyStat('浏览器模式：云端大模型需桌面端');
+    }
+  }else{
+    const ok=await asrProbeOffline(lang);
+    asrEngine=ok?'vosk':(asrSR()?'web':'none');
+    asrSetKeyStat(lang==='yue'?'Vosk 无官方粤语模型，粤语请用云端模式':'本地模式：模型'+(ok?'已就位':'未放置'));
+  }
+  asrPaintEng();
+}
+/* ---------- 渲染与导出 ---------- */
 function fmtSrt(d){const p=n=>(''+(n|0)).padStart(2,'0');return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())+','+(''+(d.getMilliseconds()|0)).padStart(3,'0');}
+function fmtSrtMs(ms){
+  const p=(n,w)=>(''+(n|0)).padStart(w,'0');
+  const h=(ms/3600000)|0,m=((ms%3600000)/60000)|0,sec=((ms%60000)/1000)|0,msec=ms%1000;
+  return p(h,2)+':'+p(m,2)+':'+p(sec,2)+','+p(msec,3);
+}
 function renderAsr(it){const O=$('asrOut');if(!O)return;O.innerHTML='';
   const f=document.createElement('div');f.className='fin';f.textContent=asrFinal;
   if(it){const i=document.createElement('div');i.className='it';i.textContent=it;O.appendChild(f);O.appendChild(i);}else O.appendChild(f);
   O.scrollTop=O.scrollHeight;}
+function asrSrtText(){
+  // 云端返回逐句时间戳时用真实时间轴；否则退化为整段一条
+  if(asrSents.length){
+    let out='';
+    asrSents.forEach((x,i)=>{out+=(i+1)+'\n'+fmtSrtMs(x.s)+' --> '+fmtSrtMs(x.e)+'\n'+x.text+'\n\n';});
+    return out;
+  }
+  return '1\n'+fmtSrt(asrT0)+' --> '+fmtSrt(new Date())+'\n'+asrFinal+'\n';
+}
+/* ---------- 本地 Vosk ---------- */
+let asrVosk={model:null,rec:null};
 function asrVoskCleanup(){
-  try{if(asrVosk.proc){asrVosk.proc.onaudioprocess=null;asrVosk.proc.disconnect();}}catch(_){}
-  try{if(asrVosk.src)asrVosk.src.disconnect();}catch(_){}
-  try{if(asrVosk.stream)asrVosk.stream.getTracks().forEach(t=>t.stop());}catch(_){}
-  try{if(asrVosk.ctx)asrVosk.ctx.close().catch(()=>{});}catch(_){}
   try{if(asrVosk.rec&&asrVosk.rec.remove)asrVosk.rec.remove();}catch(_){}
-  asrVosk={model:asrVosk.model,rec:null,ctx:null,proc:null,src:null,stream:null};}
-async function asrBeginVosk(){
-  $('asrStart').disabled=true;$('asrStop').disabled=false;$('asrStat').textContent='正在加载本地模型…';
+  asrVosk.rec=null;
+}
+async function asrBeginVoskRec(){
   try{
-    if(!asrVosk.model)asrVosk.model=await window.Vosk.createModel(VOSK_MODEL);
+    const url=VOSK_MODEL[asrLangCode()];
+    if(!asrVosk.model||asrVosk.modelUrl!==url){asrVosk.model=await window.Vosk.createModel(url);asrVosk.modelUrl=url;}
     const rec=asrVosk.rec=new asrVosk.model.KaldiRecognizer();
     try{rec.setWords(true);}catch(_){}
     rec.on('result',m=>{const t=(m&&m.result&&m.result.text)||'';if(t){asrFinal+=t;renderAsr('');}});
     rec.on('partialresult',m=>{const p=(m&&m.result&&m.result.partial)||'';renderAsr(p);});
-    const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1,sampleRate:16000}});
-    asrVosk.stream=st;
-    const Ctx=window.AudioContext||window.webkitAudioContext;
-    const ctx=asrVosk.ctx=new Ctx();
-    if(ctx.state!=='running')await ctx.resume().catch(()=>{});
-    const src=asrVosk.src=ctx.createMediaStreamSource(st);
-    const proc=asrVosk.proc=ctx.createScriptProcessor(4096,1,1);
-    proc.onaudioprocess=ev=>{try{rec.acceptWaveform(ev.inputBuffer);}
-      catch(e){diagAdd('warn','Vosk acceptWaveform 异常：'+((e&&e.message)||e));}};
-    src.connect(proc);proc.connect(ctx.destination);
-    asrOn=true;asrFinal='';asrT0=new Date();$('asrOut').textContent='';
-    $('asrStat').textContent='转写中（离线）…';
+    $('asrStat').textContent='转写中（本地离线）…';
   }catch(e){
-    diagAdd('error','Vosk 离线引擎启动失败，回退在线：'+((e&&e.message)||e));
+    diagAdd('error','Vosk 离线引擎启动失败：'+((e&&e.message)||e));
     asrVoskCleanup();
-    $('asrStart').disabled=false;$('asrStop').disabled=true;
-    asrEngine=(window.SpeechRecognition||window.webkitSpeechRecognition)?'web':'none';
-    asrPaintEng();
-    toast('⚠️ 离线引擎不可用，已回退在线引擎');
-    if(asrEngine==='web')asrBeginWeb();}}
+    if(asrSR()){asrEngine='web';asrPaintEng();toast('⚠️ 离线引擎不可用，已回退 Web Speech');asrBeginWeb();}
+    else{asrEngine='none';asrPaintEng();$('asrStat').textContent='❌ 离线引擎不可用且无在线回退';}
+  }
+}
+/* ---------- 浏览器 Web Speech（在线回退）---------- */
 function asrBeginWeb(){
   setupASR();
-  if(!recog){toast('❌ 当前环境不支持语音识别（浏览器无 Web Speech API 或离线不可用）');asrSetEng('引擎：不支持');return;}
-  recog.lang=$('asrLang').value;recog.continuous=true;recog.interimResults=$('asrInt').checked;
+  if(!recog){toast('❌ 当前环境不支持语音识别');asrSetEng('引擎：不支持');return;}
+  recog.lang=asrWebLang();recog.continuous=true;
+  const cb=$('asrInt');recog.interimResults=!!(cb&&cb.checked);
   recog.onresult=e=>{let fin='',it='';for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript;else it+=e.results[i][0].transcript;}
     asrFinal+=fin;renderAsr(it);};
   recog.onerror=ev=>{if(ev.error==='network')$('asrStat').textContent='⚠️ 需联网（Web Speech 走云端）';else if(ev.error!=='no-speech')$('asrStat').textContent='⚠️ '+ev.error;};
   recog.onend=()=>{if(asrOn){try{recog.start();}catch(_){}}};
-  asrOn=true;asrFinal='';asrT0=new Date();$('asrOut').textContent='';
   try{recog.start();}catch(e){$('asrStat').textContent='启动失败：'+((e&&e.message)||e);return;}
-  $('asrStart').disabled=true;$('asrStop').disabled=false;asrPaintEng();$('asrStat').textContent='转写中…';}
-function asrBegin(){if(asrEngine==='vosk'){asrBeginVosk();return;}asrBeginWeb();}
-function asrStop(){if(asrEngine==='vosk')asrVoskCleanup();
-  if(recog){try{recog.stop();}catch(_){}}asrOn=false;
-  $('asrStart').disabled=false;$('asrStop').disabled=true;$('asrStat').textContent='已停止';renderAsr('');}
-// 释放离线模型占用的 WASM 内存（模型复用，故仅在页面卸载时 terminate）
+  $('asrStat').textContent='转写中（Web Speech）…';
+}
+/* ---------- 开始 / 停止 ---------- */
+async function asrBegin(){
+  const mode=($('asrMode')&&$('asrMode').value)||'cloud';
+  asrFinal='';asrSents=[];asrT0=new Date();
+  const O=$('asrOut');if(O)O.textContent='';
+  try{await asrCapStart();}catch(e){
+    diagAdd('error','麦克风采集启动失败：'+((e&&e.message)||e));
+    toast('❌ 无法访问麦克风');$('asrStat').textContent='❌ 麦克风不可用';return;}
+  asrWaveStart();asrOn=true;
+  $('asrStart').disabled=true;$('asrStop').disabled=false;
+  await asrDetect();
+  if(mode==='local'){
+    if(asrEngine==='vosk')asrBeginVoskRec();
+    else if(asrEngine==='web')asrBeginWeb();
+    else{asrEngine='none';asrPaintEng();$('asrStat').textContent='❌ 离线模型未放置，且无在线回退';
+      if(asrLangCode()==='yue')toast('粤语暂无离线模型，请切换到云端模式');}
+  }else{
+    if(asrEngine==='dash')$('asrStat').textContent='录制中（云端分段转写）…';
+    else if(asrEngine==='dash-nokey'){$('asrStat').textContent='⚠️ 未配置 API Key，已回退 Web Speech';
+      toast('未配置云端 Key，先点「云端设置」');asrEngine='web';asrPaintEng();asrBeginWeb();}
+    else if(asrEngine==='web')asrBeginWeb();
+    else $('asrStat').textContent='❌ 无可用引擎';
+  }
+}
+async function asrStop(){
+  if(!asrOn){return;}
+  const keep=$('asrKeepWav');
+  if(ASR_CAP.len>0){
+    const full=capSlice(ASR_CAP.segBase,ASR_CAP.len);
+    if(asrEngine==='dash'&&full.length>=ASR_CAP.sr*0.4){
+      await asrCloudSubmit(full,Math.round(ASR_CAP.segBase/ASR_CAP.sr*1000));
+    }
+    if(keep&&keep.checked){
+      const all=capSlice(0,ASR_CAP.len);
+      await asrSaveWavBlob(asrWavBlob(all),false);
+    }
+  }
+  asrOn=false;asrVoskCleanup();asrCapStop();asrWaveStop();asrWaveDraw();
+  if(recog){try{recog.stop();}catch(_){}}
+  $('asrStart').disabled=false;$('asrStop').disabled=true;
+  const st=$('asrStat');if(st&&/转写中|录制中/.test(st.textContent))st.textContent='已停止';
+  renderAsr('');
+}
 addEventListener('pagehide',()=>{try{if(asrVosk.model&&asrVosk.model.terminate)asrVosk.model.terminate();}catch(_){}});
-$('asrStart').addEventListener('click',asrBegin);
-$('asrStop').addEventListener('click',asrStop);
+/* ---------- 事件绑定 ---------- */
+$('asrStart').addEventListener('click',()=>{asrBegin();});
+$('asrStop').addEventListener('click',()=>{asrStop();});
 $('asrCopy').addEventListener('click',()=>{if(!asrFinal){toast('暂无文字稿');return;}
   if(navigator.clipboard)navigator.clipboard.writeText(asrFinal).then(()=>toast('已复制文字稿'),()=>toast('复制失败'));else toast('复制失败');});
 $('asrExp').addEventListener('click',()=>{if(!asrFinal){toast('暂无文字稿');return;}
   l2Dl(new Blob([asrFinal],{type:'text/plain'}),'meeting_'+toolTs()+'.txt');
-  const srt='1\n'+fmtSrt(asrT0)+' --> '+fmtSrt(new Date())+'\n'+asrFinal+'\n';
-  l2Dl(new Blob([srt],{type:'text/plain'}),'meeting_'+toolTs()+'.srt');toast('已导出 txt / srt');});
+  l2Dl(new Blob([asrSrtText()],{type:'text/plain'}),'meeting_'+toolTs()+'.srt');toast('已导出 txt / srt');});
+$('asrSaveWav').addEventListener('click',()=>{
+  if(ASR_CAP.len<=0){toast('暂无录音内容，请先开始转写');return;}
+  asrSaveWavBlob(asrWavBlob(capSlice(0,ASR_CAP.len)),false);});
+$('asrKeyBtn').addEventListener('click',async()=>{
+  if(!window.asrCloud){toast('浏览器模式无云端通道，请用桌面端');return;}
+  const cur=await window.asrCloud.keyStatus().catch(()=>({hasKey:false}));
+  const k=prompt('填入阿里云百炼（DashScope）API Key：\n（保存在本机 userData/asr-config.json，不会写入源码仓库）',cur&&cur.hasKey?'••••••••':'');
+  if(k===null)return;
+  const r=await window.asrCloud.setKey(k).catch(e=>({ok:false,message:(e&&e.message)||e}));
+  if(r&&r.ok){toast('已保存 API Key');asrDetect();}else toast('保存失败：'+((r&&r.message)||'未知'));});
+$('asrMode').addEventListener('change',()=>{asrDetect();});
+$('asrLang').addEventListener('change',()=>{asrDetect();});
 });
 let toastTmr=null;
 function toast(msg){const t=$('toast');if(!t)return;t.textContent=msg;t.classList.add('on');clearTimeout(toastTmr);toastTmr=setTimeout(()=>t.classList.remove('on'),2600);}
@@ -4697,22 +4930,37 @@ resize();frame();
       </div>
     </div>
   </div>
-  <!-- v2.13.x 音频工具集③：会议语音转写 -->
+  <!-- v2.15.0 音频工具集③：会议语音转写（三语 + 云端/本地双模式 + 波形 + 录音保存） -->
   <div class="toolmask" id="asrMask">
     <div class="toolcard">
       <div class="toolhead"><span class="toolttl">🎙️ 会议语音转写 <span class="badge2" id="asrEng">引擎：检测中</span></span>
         <button class="toolx" id="asrClose">✕</button></div>
       <div class="toolbody">
         <div class="toolrow"><label>语言</label>
-          <select id="asrLang"><option value="zh-CN" selected>中文（普通话）</option><option value="zh-CN-yue">粤语</option><option value="en-US">English</option></select>
-          <label class="sw"><input id="asrInt" type="checkbox" checked> 实时中间结果</label></div>
+          <select id="asrLang"><option value="zh" selected>中文（普通话）</option><option value="yue">中文（粤语）</option><option value="en">English</option></select>
+          <label>模式</label>
+          <select id="asrMode"><option value="cloud" selected>云端（联网 · 阿里云）</option><option value="local">本地（离线 · Vosk）</option></select>
+        </div>
+        <div class="toolrow"><label class="sw"><input id="asrInt" type="checkbox" checked> 实时中间结果</label>
+          <label class="sw"><input id="asrAutoSeg" type="checkbox" checked> 分段自动转写</label>
+          <label>段长</label>
+          <select id="asrSeg"><option value="20">20 秒</option><option value="30" selected>30 秒</option><option value="60">60 秒</option></select>
+          <label class="sw"><input id="asrKeepWav" type="checkbox" checked> 停止时保存原始录音</label></div>
+        <div class="asrwavebox">
+          <canvas id="asrWave" class="asrwave"></canvas>
+          <div class="asrwavemeta"><span id="asrTimer">00:00</span><span id="asrLvl">静音</span></div>
+        </div>
         <div class="toolrow"><button class="cap2" id="asrStart">▶ 开始转写</button>
           <button class="cap2" id="asrStop" disabled>■ 停止</button>
           <span id="asrStat" class="hint">待命</span></div>
         <div class="asrout" id="asrOut"></div>
         <div class="toolrow"><button class="cap2" id="asrCopy">复制文字稿</button>
           <button class="cap2" id="asrExp">导出文字稿</button>
-          <span class="hint">支持 txt / srt</span></div>
+          <button class="cap2" id="asrSaveWav">保存原始录音</button>
+          <span class="hint">txt / srt / wav</span></div>
+        <div class="toolrow"><button class="cap2" id="asrKeyBtn">⚙ 云端设置</button>
+          <span id="asrKeyStat" class="hint">—</span></div>
+        <div class="hint" style="margin-top:6px">云端模式走阿里云百炼「非实时文件转写」，按段长自动提交（非逐字流式）；本地模式需自备 Vosk 模型，且粤语无官方离线模型，请用云端模式。</div>
       </div>
     </div>
   </div>
