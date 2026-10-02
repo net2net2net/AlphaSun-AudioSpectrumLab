@@ -24,9 +24,9 @@
 - 文档重建：README 重写、`docs/架构说明.md`、`docs/测试与回归.md` 新建，过程文档补 v2.7–v2.13 内容。
 
 ### 交付（MD5）
-- `AlphaSun-AudioLab-2.13.0.apk`（3.4MB，versionCode 25 / versionName 2.13.0 经 aapt2 校验）`209722d3059a52c34cd9828429b64659`
-- `AlphaSun-AudioLab-2.13.0-portable.exe`（66.6MB，已重编去菜单，版本资源 2.13.0）`7e5e6db83a7440ce604cd3a52fcf3ab3`
-- `AlphaSun-AudioLab-2.13.0-linux-x64.tar.gz`（94.5MB）`5bef8a19ea2bc99960a7da61ae418c28`
+- `AlphaSun-AudioLab-2.13.0.apk`（3.4MB，versionCode 25 / versionName 2.13.0 经 aapt2 校验）`209722d3059a52c34cd9828429b64659`（本环境无签名密钥未重编，仍为含菜单热修、不含音频工具集的版本；待用户本机重编以含音频工具集 UI）
+- `AlphaSun-AudioLab-2.13.0-portable.exe`（66.6MB，已重编去菜单 + 含音频工具集，版本资源 2.13.0）`cb5d884a8534d64e8b5b0c74ba9c4231`
+- `AlphaSun-AudioLab-2.13.0-linux-x64.tar.gz`（94.5MB）`917d27a4118edfdeb121b6bc6381c4fb`（已含音频工具集 UI）
 
 ### 修订（2026-10-02 · 菜单热修）
 - **移除 Electron 默认应用菜单栏（"File / Edit / View / Window / Help"）**：`main.js` 主进程 `app.whenReady` 后调用
