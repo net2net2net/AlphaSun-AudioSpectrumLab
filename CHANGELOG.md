@@ -24,9 +24,9 @@
 - 文档重建：README 重写、`docs/架构说明.md`、`docs/测试与回归.md` 新建，过程文档补 v2.7–v2.13 内容。
 
 ### 交付（MD5）
-- `AlphaSun-AudioLab-2.13.0.apk`（3.4MB，versionCode 25 / versionName 2.13.0 经 aapt2 校验）`209722d3059a52c34cd9828429b64659`（本环境无签名密钥未重编，仍为含菜单热修、不含音频工具集的版本；待用户本机重编以含音频工具集 UI）
-- `AlphaSun-AudioLab-2.13.0-portable.exe`（66.6MB，已重编去菜单 + 含音频工具集，版本资源 2.13.0）`cb5d884a8534d64e8b5b0c74ba9c4231`
-- `AlphaSun-AudioLab-2.13.0-linux-x64.tar.gz`（94.5MB）`917d27a4118edfdeb121b6bc6381c4fb`（已含音频工具集 UI）
+- `AlphaSun-AudioLab-2.13.0.apk`（3.4MB，versionCode 25 / versionName 2.13.0 经 aapt2 校验）`209722d3059a52c34cd9828429b64659`（本环境无签名密钥未重编，仍为含菜单热修、不含三工具可用实现的版本；待用户本机重编以含三工具）
+- `AlphaSun-AudioLab-2.13.0-portable.exe`（66.6MB，版本资源 2.13.0）`\6cfe17d053eed7f668574d730fc261ae`（含三工具可用实现：环境音频采集 / 声波警戒值守 / 会议语音转写）
+- `AlphaSun-AudioLab-2.13.0-linux-x64.tar.gz`（66.6MB）`\6cfe17d053eed7f668574d730fc261ae`（含三工具可用实现）
 
 ### 修订（2026-10-02 · 菜单热修）
 - **移除 Electron 默认应用菜单栏（"File / Edit / View / Window / Help"）**：`main.js` 主进程 `app.whenReady` 后调用
@@ -41,6 +41,13 @@
   「（规划中）… —— 暂未开放，敬请期待」；点击页面空白或按 Esc 关闭菜单。
 - 仅改 `index.html`（CSS + DOM + JS），未动版本号（保持 v2.13.0）：属规划中占位 UI，全平台经
   `npm run sync` 同步至 `www/` 与 Android assets，三处 MD5 一致、`check.js` 全绿；不触发二进制重编即可生效。
+
+### 修订（2026-10-02 · 音频工具集三工具落地为可用）
+- 三个规划中占位项全部实现为可用功能（沿用 `.toolmask` 覆盖层范式，未新增面板切换；复用既有录制管线 / 实时声压级 / Web Speech API，未升版本号，保持 v2.13.0）：
+  - **环境音频采集**：独立 `getUserMedia` + AudioWorklet（`as-rec`）采集 PCM，实时算 dB 并写入日志；支持三种触发模式——手动 / 定时（时长+间隔）/ 声级触发（阈值+方向+持续 N 秒）；按段切分存 16bit WAV（复用 `l2WavF`+`l2Dl`），可一键导出采集日志 txt。
+  - **声波警戒值守**：独立 `AnalyserNode` 取时域算实时声压级 dB，每 150ms 比对阈值；超限触发整页闪烁（`body.alarm`）+ 880Hz 提示音（`alBeep`，WebAudio square）+ 写警戒日志（含时间戳/峰值 dB）；阈值/持续/闪烁/提示音可配，可导出日志 txt。
+  - **会议语音转写**：`setupASR()` + Web Speech API（zh-CN，在线引擎，已在 UI 诚实标注「引擎：Web Speech（在线）」）；实时中间结果 + 最终文本累积，支持复制与导出 txt / srt 双文件（srt 时间码由采集起算）。离线引擎（Vosk WASM + 中文模型）因模型体积大需后续接入，本轮未做。
+- 校验：`validate.js` 全绿（246 DOM id 全在、E 映射 159 key、版本 v2.13.0 五点一致）；`npm run sync` 三处 MD5 一致、`check.js` 五阶段全绿（A/C 计权 + BPM 自检 / 三处一致 / 离线 lamejs）。Win 便携版与 Linux 版已重编并覆盖 v2.13.0 Release 资产（MD5 见上）。
 
 ## v2.12.0（2026-10-02）
 - **自研 FLAC 编码器**（`l2EncFlacJS`）：WebCodecs 在 Electron/Edge 均不支持 flac → 不删格式，改为自研
