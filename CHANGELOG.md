@@ -5,6 +5,80 @@
 
 
 
+## v2.14.2（2026-10-02）—— 工程化迭代：自动化回归门禁 / 诊断日志 / 离线转写引擎层 / 遗留清理
+
+四项均来自一次**实证审计**（而非泛泛建议）：发现 `tools/` 下 10 个 `pw-*.js` 调试脚本未接入 npm scripts、
+仓库没有 `npm test`、devDependencies 无测试框架 ⇒ 既往修复缺少自动回归保护
+（v2.13.0 缺陷与 v2.14.0/2.14.1 遮挡问题都是发布后才由用户发现）。本轮逐项补齐。
+
+### ① 自动化回归门禁（`tools/qa-gate.js`，新增）
+
+- **运行环境**：playwright-core + Electron `_electron.launch`，`--use-fake-device-for-media-stream` 提供假麦克风；
+  playwright-core 装在项目外的托管工作区（未污染项目依赖），故脚本内置**回退查找**：
+  项目 `node_modules` → `~/.workbuddy/binaries/node/workspace/node_modules`；并必须 `delete process.env.ELECTRON_RUN_AS_NODE`
+  （否则 WorkBuddy 注入该变量后 Electron 会退化为纯 Node 静默退出）。
+- **6 组 18 项断言**：① 诊断模块注入 / 加载期零 pageerror / 零 console.error / 报告可生成 / 导出可调用；
+  ② 12 项关键 DOM 齐备；③ 工具集弹窗可打开、完整在视口内、中心点未被遮挡、中心≈视口中心（容差 3px）、含导出入口；
+  ④ 三个工具面板依次开合；⑤ ASR 引擎标注**诚实性**；⑥ 交互后复查零错误。
+- **针对遮挡缺陷的专项防线**：遮挡断言用 `document.elementFromPoint(视口中心)` 判定命中元素是否属于菜单内部，
+  并校验菜单矩形中心 ≈ 视口中心。这是 v2.14.0 / v2.14.1 两次遮挡回归的直接拦截点。
+- **接入**：新增 `npm run qa`；`npm run check:all` = `check`（静态自检）+ `qa`（运行时门禁）。
+
+**实测 18/18 全绿**，且做了**反向验证（mutation testing）**：故意把 `#toolsMenu` 塞回 `.capwrap`、CSS 改回 `absolute` 后，
+门禁立刻失败为 14/18，报 `弹窗中心点未被其它元素遮挡 — 顶层元素=DIV#bandBars.bands tall` 与
+`menu中心=(992,222) 视口中心=(634,349)`；随后按 MD5 校验还原源码 —— 证明门禁**真的能拦截该缺陷**，不是装饰品。
+
+### ② 一键导出运行日志（诊断模块）
+
+- 500 条环形缓冲，避免长时值守内存无界增长；包装 `console.error/warn`，并捕获
+  `addEventListener('error', …, true)` 与 `unhandledrejection`。
+- 报告内容：版本 / 平台 / UA / 硬件并发 / AudioContext / AudioWorklet / SpeechRecognition / localStorage / L2 上限 /
+  全部日志条目 / 关键 DOM 文本（引擎标注、采样率、CMF、CPU、内存、麦克风、BPM、dB(A)、Leq、状态栏）。
+- 工具集菜单新增「🩺 导出运行日志」，导出为 `alphasun_diag_<时间戳>.txt`；同时暴露 `window.__diag` 供门禁读取。
+- 门禁实测：加载期 `errors=0 warns=0`，报告长度 >200 字符。
+
+### ③ 离线转写引擎层（Vosk，可插拔）
+
+- **依赖选型**：`vosk-browser@0.0.8`。过程中 `vosk-browser-wasm` 在 npmmirror 与 npmjs 均 404、
+  `alphacep/vosk-api@v0.3.50` 0 个发布资产、`alphacephei.com/vosk/web/*` 三个 WASM 直链均 404，只有 `vosk-browser` 可达
+  （`dist/vosk.js` 5.8MB emscripten 单文件）。
+- `tools/sync-vosk.js` 把运行时同步到 `assets/vosk/`（**幂等 + md5 回读校验**，内容一致才跳过），已并入 `npm run sync`；
+  同步产物 `assets/vosk/vosk.js` 与 `README.md` 已加入 `.gitignore`（派生文件，禁止入库）。
+- **引擎层改造**：`asrDetect()` 先探测本地模型（`HEAD assets/vosk/model.tar.gz`）→ 存在则 vosk，否则回落 Web Speech / 不支持；
+  运行时**惰性加载** vosk.js（无模型时零开销）；Vosk 初始化失败自动回退在线并 toast 如实提示。
+- **诚实性设计（重要）**：模型约 42MB，**不随包发布** —— 未放置模型时 UI 绝不谎报「Vosk 离线」。
+  门禁专项实测：badge = `引擎：Web Speech（在线）`、`Vosk运行时已加载=false`。放置方法见 `assets/vosk/MODEL_PLACEHOLDER.md`
+  （须是 `model.tar.gz` 而非官方 zip，且 `model/conf/model.conf` 官方不提供、需自建，文档给了示例）。
+
+### ④ 遗留清理与小优化
+
+- 抽取单一真源 `L2_LIMITS={sec:600,mb:40}`，替换散落三处的 `if(peek>600)` 硬编码，统一走 `l2GuardDur(peek, action)`
+  （三处文案分别为「不做处理」/「不做转码；可改用原始格式直存」/「不计算声谱图」），并双向同步注释。
+- 保留并可配置项：`localStorage['alphasun.l2.maxSec']` 作为内存充裕时的逃生阀。
+- 更新已过时的「待开发项占位」注释（v2.14.0 起三个工具均已实现）。
+
+### 版本号
+
+- 五点统一升级到 **v2.14.2**，`versionCode 27 → 28`；由 `node tools/bump-version.js 2.14.2` 幂等完成并回读校验。
+
+### 交付（MD5）
+
+- `AlphaSun-AudioLab-2.14.2-portable.exe`（68.0MB（71,288,810 字节））`6d2f27737038c566f0273d72aa3377c8`
+- `AlphaSun-AudioLab-2.14.2-linux-x64.tar.gz`（98.9MB（103,726,276 字节））`4a942daf60fa3db9905e0eb153b93f72`
+- `AlphaSun-AudioLab-2.14.2.apk`：**本环境无签名密钥，未重编**，仍需用户本机签名重编。
+
+### 校验
+
+- `tools/qa-gate.js` **18/18 全绿**（含上述反向验证）。
+- `npm run sync` 三处源码 MD5 一致（根 / `www/` / Android assets）：`c96044db63c4dca4855d3c248d953a1b`；`check.js` 五阶段全绿。
+- `node --check` 内联主脚本语法通过；三处注入脚本改造后均回读复核（避免「并行编辑同文件导致后写覆盖先写」）。
+
+### 已知限制
+
+- **Vosk 离线中文准确率尚未真机验证** —— 需用户自行放入 `model.tar.gz` 后实测；在此之前默认走在线 Web Speech。
+- 门禁依赖 Electron 桌面运行时 + playwright-core，**在无 GUI / 无 Electron 的 CI 上跑不了**；若后续要上 CI 需改用 Chromium。
+- APK 始终缺位（无签名密钥），移动端用户需本机 `npx cap build android` 后签名。
+
 ## v2.14.1（2026-10-02）—— 修复「音频工具集」弹出框被遮挡
 
 ### 根因（层叠上下文，非定位数值问题）
