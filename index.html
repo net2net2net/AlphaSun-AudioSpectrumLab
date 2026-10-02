@@ -62,12 +62,13 @@
   .cap2.on{border-color:var(--cy);color:#eaf6ff;background:linear-gradient(135deg,rgba(55,224,255,.30),rgba(155,107,255,.22))}
   /* v2.13.x：音频工具集按钮 + 弹出菜单（待开发项占位） */
   .capwrap{position:relative}
-  .toolsMenu{position:absolute;top:calc(100% + 10px);right:0;z-index:80;min-width:248px;
+  .toolsMenu{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:86;min-width:300px;
     background:linear-gradient(160deg,rgba(16,25,48,.98),rgba(10,15,32,.98));
-    border:1px solid rgba(55,224,255,.30);border-radius:14px;padding:8px;
-    box-shadow:0 20px 60px rgba(0,0,0,.55);display:none}
-  .toolsMenu.on{display:block;animation:tmPop .14s ease-out}
+    border:1px solid rgba(55,224,255,.35);border-radius:16px;padding:14px 12px;
+    box-shadow:0 24px 70px rgba(0,0,0,.6);display:none}
+  .toolsMenu.on{display:block;animation:tmPop2 .14s ease-out}
   @keyframes tmPop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes tmPop2{from{opacity:0;transform:translate(-50%,-50%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
   .toolsMenu .tmTtl{font-size:11px;color:var(--faint);letter-spacing:1px;padding:4px 10px 8px;font-family:var(--mono)}
   .toolsMenu button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;
     background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:10px;padding:9px 11px;margin-bottom:6px;
@@ -4184,7 +4185,8 @@ function l2Close(){
   if(L2.liveStream){try{L2.liveStream.getTracks().forEach(t=>{try{t.stop();}catch(_){}});}catch(_){}}L2.liveStream=null;
   l2Release();}
 $('lab2Btn').addEventListener('click',()=>{try{l2Open();}catch(e){console.warn('[L2] 打开异常',e);showErr('二级分析台打开失败：'+((e&&e.message)||e));}});
-// v2.13.x：音频工具集按钮 + 弹出菜单（待开发项占位）
+document.addEventListener('DOMContentLoaded',()=>{
+// v2.13.x：音频工具集按钮 + 弹出菜单（三工具已落地）
 $('toolsBtn').addEventListener('click',e=>{e.stopPropagation();const m=$('toolsMenu');if(m)m.classList.toggle('on');});
 $('toolsMenu').querySelectorAll('button[data-tool]').forEach(b=>{
   b.addEventListener('click',e=>{e.stopPropagation();const m=$('toolsMenu');if(m)m.classList.remove('on');
@@ -4353,6 +4355,7 @@ $('asrExp').addEventListener('click',()=>{if(!asrFinal){toast('暂无文字稿')
   l2Dl(new Blob([asrFinal],{type:'text/plain'}),'meeting_'+toolTs()+'.txt');
   const srt='1\n'+fmtSrt(asrT0)+' --> '+fmtSrt(new Date())+'\n'+asrFinal+'\n';
   l2Dl(new Blob([srt],{type:'text/plain'}),'meeting_'+toolTs()+'.srt');toast('已导出 txt / srt');});
+});
 let toastTmr=null;
 function toast(msg){const t=$('toast');if(!t)return;t.textContent=msg;t.classList.add('on');clearTimeout(toastTmr);toastTmr=setTimeout(()=>t.classList.remove('on'),2600);}
 $('lab2Close').addEventListener('click',()=>{try{l2Close();}
