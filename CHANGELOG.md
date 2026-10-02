@@ -66,10 +66,24 @@
   `npm run envtest` 32 项全通过。
 - 反向验证：改 `gWave` id / 改默认可见 / 拆掉蓝色正常灯 → 门禁**均被拦截报错**，确认断言非装饰。
 
+### 构建后实测修复（重要：首版产物已作废并替换）
+
+首版 v2.17.0 产物构建完成后，又用**假麦克风真机跑了一遍值守全流程**（`npm run guardsmoke`），
+暴露两个只在运行期才现形的缺陷，均已修复并**重新构建、替换了 Release 资产**：
+
+1. **开始值守即渲染进程崩溃**。事件录音原用 `ScriptProcessorNode`（已废弃），
+   在本机 Electron 28 下开始值守后**必崩**（`[CRASH] renderer crashed`，值守台再也起不来）。
+   → 改为复用项目统一的 **AudioWorklet 直采 PCM**（`as-rec`，与环境采集/会议转写同款），崩溃消失。
+2. **顶部「事件数」在退出后不刷新**。事件归档依赖下一帧 `requestAnimationFrame` 更新读数，
+   而退出流程紧接着就 `cancelAnimationFrame` → 计数停在 0，与底部列表已列出的事件自相矛盾。
+   → `alEvFinish()` 归档后**立即**调用一次 `alPaintTop()`，不再依赖下一帧。
+
+> 若你已下载首版 v2.17.0（EXE MD5 `8e96c45ad244559b81e5782826f565f0`），**请重新下载**。
+
 ### 交付（MD5）
 
-- Windows 便携版 `AlphaSun-AudioLab-2.17.0-portable.exe`（69 MB）：`8e96c45ad244559b81e5782826f565f0`
-- Linux x64 `AlphaSun-AudioLab-2.17.0-linux-x64.tar.gz`（99 MB）：`36edebf2cb2279a6c2af7c7584a64c7e`
+- Windows 便携版 `AlphaSun-AudioLab-2.17.0-portable.exe`（69 MB）：`49bf7812eaa4cc1c338a06f892217964`
+- Linux x64 `AlphaSun-AudioLab-2.17.0-linux-x64.tar.gz`（99 MB）：`1dff36b82c7d447f9cee48828376b6d6`
 - `npm run sync` 三处源码 MD5 一致（根 / `www/` / Android assets）：`dd949d8d1fd288d4c3efd37ef67c28bc`；`check.js` 五阶段全绿。
 - 门禁：`npm run qa`（Electron 真机）**44 / 44 通过**；`npm run envtest` **32 / 32 通过**。
 - 反向验证：改 `gWave` id / 值守台默认改为可见 / 拆掉蓝色正常灯 —— 三次变异**均被门禁拦截**，还原后 `index.html` 与变异前逐字节一致。
