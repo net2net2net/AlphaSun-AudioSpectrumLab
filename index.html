@@ -602,20 +602,14 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.14.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.14.1</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
     <div class="capwrap">
       <button class="cap paused" id="capBtn"><span class="ic"></span><span id="capTxt">开始采集</span></button>
       <button class="cap2" id="lab2Btn" title="打开二级分析台：导入音频文件 / 现场录制 / 整体波形 / 播放控制 / 导出报告与工程"><span class="ic2">🧪</span><span>二级分析</span></button>
-      <button class="cap2" id="toolsBtn" title="音频工具集：会议语音转写 / 环境音频采集 / 声波警戒值守（均规划中，敬请期待）"><span class="ic2">🧰</span><span>音频工具集</span></button>
-      <div class="toolsMenu" id="toolsMenu">
-        <div class="tmTtl">音频工具集 · 规划中</div>
-        <button data-tool="会议语音转写"><span class="nm">会议语音转写<span class="badge">规划中</span></span><span class="ds">离线中文实时转写 · 说话人区分</span></button>
-        <button data-tool="环境音频采集"><span class="nm">环境音频采集<span class="badge">规划中</span></span><span class="ds">长时无人值守录制 · 定时/触发</span></button>
-        <button data-tool="声波警戒值守"><span class="nm">声波警戒值守<span class="badge">规划中</span></span><span class="ds">阈值触发声光警报 · 值守日志</span></button>
-      </div>
+      <button class="cap2" id="toolsBtn" title="音频工具集：会议语音转写 / 环境音频采集 / 声波警戒值守"><span class="ic2">🧰</span><span>音频工具集</span></button>
     </div>
     <div class="tools">
       <span class="chip" id="chipEngine"><span class="d"></span>引擎 <b>待机</b></span>
@@ -1591,7 +1585,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.14.0',APP_BUILD='20261002';
+const APP_VER='2.14.1',APP_BUILD='20261002';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';}catch(e){}
 // ---- 系统监视（需求#4：顶栏 CPU/内存。桌面版经 preload 桥取真实系统值；网页/移动端无权限显示 —） ----
 function sysTick(){
@@ -4506,6 +4500,16 @@ resize();frame();
 <script src="desktop/boot.js"></script>
 <script src="mobile/bridge.js"></script>
   <!-- v2.13.x 音频工具集①：环境音频采集 -->
+  <!-- v2.14.0 音频工具集弹出菜单：必须作为 body 直属子元素。
+       .app 是 position:relative;z-index:1 且带 zoom → 形成层叠上下文，并使内部 position:fixed
+       改为相对 .app 定位，菜单 z-index 只在该上下文内比较 → 被主画布遮挡。
+       移出 .app 后：fixed 相对视口居中，z-index 在根层比较，不被遮挡。 -->
+  <div class="toolsMenu" id="toolsMenu">
+    <div class="tmTtl">音频工具集</div>
+    <button data-tool="会议语音转写"><span class="nm">会议语音转写</span><span class="ds">中文实时转写 · 导出 txt / srt</span></button>
+    <button data-tool="环境音频采集"><span class="nm">环境音频采集</span><span class="ds">长时无人值守录制 · 定时/触发</span></button>
+    <button data-tool="声波警戒值守"><span class="nm">声波警戒值守</span><span class="ds">阈值触发声光警报 · 值守日志</span></button>
+  </div>
   <div class="toolmask" id="envMask">
     <div class="toolcard">
       <div class="toolhead"><span class="toolttl">🌿 环境音频采集</span><button class="toolx" id="envClose">✕</button></div>
