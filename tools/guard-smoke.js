@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/* v2.17.0 声波警戒值守台 · 真机冒烟（npm run guardsmoke）
+/* v2.17.0 录音链路 · 真机冒烟（npm run guardsmoke）
+ * 覆盖两条录音主链路：① 声波警戒值守台  ② 会议语音转写
+ * （两者曾共用 ScriptProcessorNode，在本机 Electron 28 下都会让渲染进程崩溃，故一起守住）
  *
  * 为什么需要它：qa-gate 第 9 组只能证明"值守台的 DOM 长齐了"，证明不了
  * "值守流程真跑得起来"——本底评估、状态机、环形仪表刷新、退出复原，全在运行期。
@@ -146,7 +148,22 @@ function chk(name, ok, detail) {
   chk('状态复位为待命', afterStop.stat === '待命', 'stat=' + afterStop.stat);
   chk('读数复位', /--/.test(afterStop.now || ''), 'now=' + afterStop.now);
 
-  console.log('\n[6.5] 事件归档链路（退出时会强制结束在途事件 → 应入列表、带录音与导出）');
+  console.log('\n[6.5] 第二段值守：手动极低阈值 → 确定性造出事件（不依赖假设备的发声时机）');
+  await page.evaluate(() => {
+    const a = document.getElementById('alertAuto'); if (a) a.checked = false;   // 关自动本底 → 走手动阈值
+    const t = document.getElementById('alertThr'); if (t) t.value = '-120';      // 环境本底约 -100 dB，必然越阈
+    const h = document.getElementById('alertHold'); if (h) h.value = '1';        // 回落 1 秒即归档
+  });
+  await page.click('#alertStart');
+  await page.waitForTimeout(4000);
+  const during = await page.evaluate(() => ({
+    state: (document.getElementById('gState') || {}).textContent,
+    shown: document.getElementById('guardScreen').style.display !== 'none',
+  }));
+  chk('手动阈值下立即进入告警态', during.shown && during.state === '告警', 'state=' + during.state);
+  await page.click('#gExit');
+  await page.waitForTimeout(1500);
+
   const evs = await page.evaluate(() => {
     const box = document.getElementById('gEvList');
     const rows = box ? Array.from(box.querySelectorAll('.gEv')) : [];
@@ -165,7 +182,29 @@ function chk(name, ok, detail) {
     '含 audio=' + evs.withAudio + '/' + evs.rows + ' 含导出=' + evs.withBtn + '/' + evs.rows);
   if (evs.sample) console.log('     事件样例：' + evs.sample);
 
-  console.log('\n[7] 全程零错误');
+  console.log('\n[7] 会议转写录音链路（同属 ScriptProcessor 事故面，防回归）');
+  await page.click('#alertClose');           // 先关掉值守面板，否则它会挡住后续点击
+  await page.waitForTimeout(300);
+  await page.click('#toolsBtn');
+  await page.waitForTimeout(200);
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('#toolsMenu button[data-tool]')).find(x => x.dataset.tool === '会议语音转写');
+    if (b) b.click();
+  });
+  await page.waitForTimeout(300);
+  await page.click('#asrStart');
+  await page.waitForTimeout(4000);
+  const asr = await page.evaluate(() => ({
+    timer: (document.getElementById('asrTimer') || {}).textContent,
+    stopEnabled: !document.getElementById('asrStop').disabled,
+  }));
+  // 核心断言：活到 4 秒后页面还在（若 ScriptProcessor 崩溃，这里 evaluate 会抛 Target crashed）
+  chk('开始转写后录音链路存活（计时在走、未崩溃）', !!asr.timer && asr.stopEnabled,
+    'timer=' + asr.timer + ' stopEnabled=' + asr.stopEnabled);
+  await page.click('#asrStop');
+  await page.waitForTimeout(600);
+
+  console.log('\n[8] 全程零错误');
   chk('无 pageerror / 崩溃', errs.length === 0, errs.join(' | ').slice(0, 300));
   chk('无 console.error', cerr.length === 0, cerr.join(' | ').slice(0, 300));
 
