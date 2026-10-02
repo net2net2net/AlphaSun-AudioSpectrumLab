@@ -34,3 +34,9 @@ ios/App/build/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# v2.14.2：Vosk 离线运行时（5.8MB，来自 npm 依赖 vosk-browser，由 tools/sync-vosk.js 再生）
+assets/vosk/vosk.js
+assets/vosk/README.md
+# 离线中文模型（42MB，需自行下载放置，详见 assets/vosk/MODEL_PLACEHOLDER.md）
+assets/vosk/model.tar.gz
