@@ -1,9 +1,10 @@
 // AlphaSun 声波分析仪 · Electron 主进程（v2.0.0 桌面稳定性架构）
-// 职责：窗口管理 / 麦克风权限授权 / 系统信息桥加载 / 崩溃捕获与日志 / 单实例锁
+// 职责：窗口管理 / 麦克风权限授权 / 系统信息桥加载 / 崩溃捕获与日志 / 单实例锁 / 云端语音转写代理
 // ⚠ 时序红线：session 模块只能在 app ready 后访问；process.on 兜底必须在模块顶层注册（任何更早的崩溃都要能落日志）
-const { app, BrowserWindow, session, dialog, Menu } = require('electron');
+const { app, BrowserWindow, session, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 // ---- 单实例锁：防止多开抢占麦克风设备 ----
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -63,11 +64,180 @@ function createWindow() {
   win.on('closed', () => { win = null; });
 }
 
+/* ==========================================================================
+   云端语音转写（阿里云 DashScope 非实时文件转写）
+   --------------------------------------------------------------------------
+   为什么必须由主进程代理：
+     1) 浏览器直连 dashscope.aliyuncs.com 会被 CORS 拦截；
+     2) API Key 若放在渲染进程，打包后可被任意提取，等于泄露；
+     3) multipart 上传 OSS 需要 Node 侧的 FormData/Blob。
+   渲染进程只传 WAV 二进制（base64），不接触 Key。
+   模型 qwen-audio-3.0-asr-flash-filetrans 支持 language_hints: zh / yue / en。
+   ⚠ 该模型是「非实时文件转写」：提交任务→轮询→取结果，做不到流式逐字。
+      因此前端采取「分段录制 + 分段提交」的准实时策略。
+   ========================================================================== */
+const DASH_BASE = 'https://dashscope.aliyuncs.com';
+const DASH_MODEL = 'qwen-audio-3.0-asr-flash-filetrans';
+// 前端语言码 → DashScope language_hints
+const DASH_LANG = { zh: 'zh', yue: 'yue', en: 'en' };
+const DASH_POLL_MAX = 150;   // 最多轮询 150 次 × 2s = 5 分钟
+const DASH_POLL_MS = 2000;
+
+function dashCfgPath() {
+  return path.join(app.getPath('userData'), 'asr-config.json');
+}
+
+/** 读取 API Key：环境变量 DASHSCOPE_API_KEY 优先，其次 userData/asr-config.json */
+function dashKey() {
+  const env = process.env.DASHSCOPE_API_KEY;
+  if (env && String(env).trim()) return String(env).trim();
+  try {
+    const p = dashCfgPath();
+    if (fs.existsSync(p)) {
+      const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+      if (j && j.dashscopeApiKey && String(j.dashscopeApiKey).trim()) return String(j.dashscopeApiKey).trim();
+    }
+  } catch (_) {}
+  return '';
+}
+
+function dashSaveKey(k) {
+  const p = dashCfgPath();
+  let j = {};
+  try { if (fs.existsSync(p)) j = JSON.parse(fs.readFileSync(p, 'utf8')) || {}; } catch (_) { j = {}; }
+  j.dashscopeApiKey = String(k || '').trim();
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify(j, null, 2), 'utf8');
+  return true;
+}
+
+/** 步骤1：拿上传凭证 → 步骤2：POST 到 OSS，返回 oss:// key */
+async function dashUpload(apiKey, filePath, model) {
+  const r = await fetch(DASH_BASE + '/api/v1/uploads?action=getPolicy&model=' + encodeURIComponent(model), {
+    headers: { Authorization: 'Bearer ' + apiKey },
+  });
+  if (!r.ok) throw new Error('获取上传凭证失败 HTTP ' + r.status + ': ' + (await r.text()).slice(0, 200));
+  const policy = (await r.json()).data;
+  const name = path.basename(filePath);
+  const key = policy.upload_dir + '/' + name;
+  const fd = new FormData();
+  fd.append('OSSAccessKeyId', policy.oss_access_key_id);
+  fd.append('policy', policy.policy);
+  fd.append('signature', policy.signature);
+  fd.append('key', key);
+  fd.append('x-oss-object-acl', policy['x-oss-object-acl'] || 'private');
+  fd.append('x-oss-forbid-overwrite', policy['x-oss-forbid-overwrite'] || 'true');
+  fd.append('file', new Blob([fs.readFileSync(filePath)]), name);
+  const up = await fetch(policy.upload_host, { method: 'POST', body: fd });
+  if (up.status !== 200 && up.status !== 204) {
+    throw new Error('音频上传失败 HTTP ' + up.status + ': ' + (await up.text()).slice(0, 200));
+  }
+  return 'oss://' + key;
+}
+
+/** 完整转写流程：上传 → 提交异步任务 → 轮询 → 取逐句结果 */
+async function dashTranscribe({ wavBase64, lang, model }) {
+  const apiKey = dashKey();
+  if (!apiKey) {
+    // 红线：缺 Key 必须明确报错，绝不静默返回空结果
+    return { ok: false, error: 'NO_KEY', message: '未配置 DashScope API Key。请在转写面板「云端设置」中填入，或设置环境变量 DASHSCOPE_API_KEY。' };
+  }
+  const useModel = model || DASH_MODEL;
+  const hint = DASH_LANG[lang] || 'zh';
+  const tmp = path.join(os.tmpdir(), 'alphasun-asr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.wav');
+  try {
+    fs.writeFileSync(tmp, Buffer.from(wavBase64, 'base64'));
+    const fileUrl = await dashUpload(apiKey, tmp, useModel);
+
+    const parameters = { language_hints: [hint] };
+    const sub = await fetch(DASH_BASE + '/api/v1/services/audio/asr/transcription', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + apiKey,
+        'Content-Type': 'application/json',
+        'X-DashScope-Async': 'enable',
+        'X-DashScope-OssResourceResolve': 'enable',
+      },
+      body: JSON.stringify({ model: useModel, input: { file_urls: [fileUrl] }, parameters }),
+    });
+    if (!sub.ok) throw new Error('提交转写任务失败 HTTP ' + sub.status + ': ' + (await sub.text()).slice(0, 300));
+    // ⚠ Response body 只能消费一次：必须先取到对象再取字段，不能反复 await .json()
+    const subJson = await sub.json();
+    const tid = ((subJson && subJson.output) || {}).task_id;
+    if (!tid) throw new Error('提交成功但未返回 task_id：' + JSON.stringify(subJson).slice(0, 200));
+
+    let js = null;
+    for (let i = 0; i < DASH_POLL_MAX; i++) {
+      await new Promise(r => setTimeout(r, DASH_POLL_MS));
+      const q = await fetch(DASH_BASE + '/api/v1/tasks/' + tid, { headers: { Authorization: 'Bearer ' + apiKey } });
+      js = await q.json();
+      const st = (js.output || {}).task_status;
+      if (st === 'SUCCEEDED') break;
+      if (st === 'FAILED' || st === 'UNKNOWN' || st === 'CANCELED') {
+        throw new Error('转写任务失败(' + st + '): ' + JSON.stringify(js).slice(0, 300));
+      }
+    }
+
+    const sentences = [];
+    for (const item of ((js.output || {}).results || [])) {
+      const out = item.output || item;
+      let turl = out.transcription_url;
+      if (!turl && out.results && out.results[0]) turl = out.results[0].transcription_url;
+      let data = out;
+      if (turl) {
+        const g = await fetch(turl);
+        data = await g.json();
+      }
+      for (const t of (data.transcripts || [])) {
+        for (const s of (t.sentences || [])) {
+          sentences.push({
+            text: s.text || '',
+            speaker_id: s.speaker_id || '',
+            begin_time: s.begin_time || 0,
+            end_time: s.end_time || 0,
+          });
+        }
+        if (!(t.sentences || []).length && t.text) {
+          sentences.push({ text: t.text, speaker_id: '', begin_time: 0, end_time: 0 });
+        }
+      }
+    }
+    const text = sentences.map(s => (s.speaker_id ? '[说话人' + s.speaker_id + '] ' : '') + s.text).join('\n');
+    return { ok: true, text, sentences, model: useModel, lang: hint };
+  } catch (e) {
+    // 故障不重试同一任务（避免重复计费）；由上层决定是否重录重提
+    crashLog('asr-cloud', (e && e.message) || String(e));
+    return { ok: false, error: 'CALL_FAILED', message: (e && e.message) || String(e) };
+  } finally {
+    try { fs.unlinkSync(tmp); } catch (_) {}
+  }
+}
+
+// ---- IPC：云端转写 / Key 状态 / Key 设置 ----
+ipcMain.handle('asr:cloud', async (_e, args) => {
+  return await dashTranscribe(args || {});
+});
+ipcMain.handle('asr:keyStatus', async () => {
+  const k = dashKey();
+  return { hasKey: !!k, source: process.env.DASHSCOPE_API_KEY ? 'env' : (k ? 'file' : 'none') };
+});
+ipcMain.handle('asr:setKey', async (_e, k) => {
+  try { dashSaveKey(k); return { ok: true }; }
+  catch (e) { return { ok: false, message: (e && e.message) || String(e) }; }
+});
+ipcMain.handle('asr:saveWav', async (_e, { name, wavBase64 }) => {
+  // 保存原始录音到用户下载目录（桌面端才有意义）
+  try {
+    const dir = app.getPath('downloads');
+    const p = path.join(dir, name || ('alphasun_rec_' + Date.now() + '.wav'));
+    fs.writeFileSync(p, Buffer.from(wavBase64, 'base64'));
+    return { ok: true, path: p };
+  } catch (e) {
+    return { ok: false, message: (e && e.message) || String(e) };
+  }
+});
+
 app.whenReady().then(() => {
-  // 移除 Electron 默认应用菜单栏（"File / Edit / View / Window / Help"）—— 当前软件功能无需该菜单，
-  // 保留只会白白占用顶栏高度；去掉后窗口客户区直接顶到标题，分析面积更大。
-  // Windows/Linux 下此调用会完全隐藏菜单栏；macOS 受系统规范限制仅保留最小应用菜单（无可避免）。
-  Menu.setApplicationMenu(null);
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
