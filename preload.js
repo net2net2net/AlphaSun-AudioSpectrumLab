@@ -1,6 +1,8 @@
-// AlphaSun 声波分析仪 · Electron 预加载桥（contextIsolation 安全暴露系统信息）
+// AlphaSun 声波分析仪 · Electron 预加载桥（contextIsolation 安全暴露系统信息 + 云端转写）
 // 仅暴露只读的 CPU/内存采样；浏览器/移动端没有 window.asSys，UI 自动降级显示 —
-const { contextBridge } = require('electron');
+// 同理，window.asrCloud 仅在桌面端存在；纯浏览器打开 index.html 时云端大模型转写不可用，
+// 前端必须据此降级并如实标注，不得假装可用。
+const { contextBridge, ipcRenderer } = require('electron');
 const os = require('os');
 let prev = os.cpus();
 contextBridge.exposeInMainWorld('asSys', {
@@ -19,4 +21,14 @@ contextBridge.exposeInMainWorld('asSys', {
       return { cpuPct, memPct };
     } catch (e) { return { cpuPct: null, memPct: null }; }
   }
+});
+
+// 云端转写桥：渲染进程只传 WAV(base64) 与语言，API Key 始终留在主进程。
+contextBridge.exposeInMainWorld('asrCloud', {
+  available: true,
+  /** @param {{wavBase64:string, lang:'zh'|'yue'|'en'}} args */
+  transcribe: (args) => ipcRenderer.invoke('asr:cloud', args),
+  keyStatus: () => ipcRenderer.invoke('asr:keyStatus'),
+  setKey: (k) => ipcRenderer.invoke('asr:setKey', k),
+  saveWav: (args) => ipcRenderer.invoke('asr:saveWav', args),
 });
