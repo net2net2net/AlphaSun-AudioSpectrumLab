@@ -83,6 +83,42 @@
     font-size:13.5px;box-shadow:0 14px 40px rgba(0,0,0,.5);opacity:0;pointer-events:none;
     transition:opacity .2s,transform .2s;max-width:82vw;text-align:center}
   .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* v2.13.x：音频工具集三个可用工具面板（环境音频采集 / 声波警戒值守 / 会议语音转写） */
+  .toolmask{position:fixed;inset:0;z-index:78;display:none;align-items:center;justify-content:center;
+    background:rgba(4,6,13,.72);backdrop-filter:blur(8px);padding:24px}
+  .toolmask.on{display:flex;animation:tmPop .14s ease-out}
+  .toolcard{width:min(560px,94vw);max-height:90vh;overflow:auto;
+    background:linear-gradient(160deg,rgba(16,25,48,.98),rgba(10,15,32,.98));
+    border:1px solid rgba(55,224,255,.30);border-radius:16px;padding:18px 20px;
+    box-shadow:0 24px 70px rgba(0,0,0,.6)}
+  .toolhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .toolttl{font-size:18px;font-weight:800;color:#eaf6ff;letter-spacing:.5px}
+  .toolx{width:30px;height:30px;border-radius:9px;border:1px solid var(--brd);background:rgba(255,255,255,.04);
+    color:var(--dim);cursor:pointer;font-size:15px}
+  .toolx:hover{color:var(--txt);border-color:rgba(255,93,115,.5)}
+  .toolbody{display:flex;flex-direction:column;gap:12px}
+  .toolrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .toolrow label{font-size:13px;color:var(--dim);min-width:max-content}
+  .toolrow input[type=number]{width:74px;background:rgba(255,255,255,.05);border:1px solid var(--brd);
+    border-radius:8px;color:var(--txt);padding:6px 8px;font-size:13px}
+  .toolrow input[type=text]{flex:1;min-width:160px;background:rgba(255,255,255,.05);border:1px solid var(--brd);
+    border-radius:8px;color:var(--txt);padding:6px 8px;font-size:13px}
+  .toolrow select{background:rgba(255,255,255,.05);border:1px solid var(--brd);border-radius:8px;color:var(--txt);padding:6px 8px;font-size:13px}
+  .hint{font-size:11px;color:var(--faint)}
+  .seg{display:inline-flex;border:1px solid var(--brd);border-radius:9px;overflow:hidden}
+  .seg button{background:transparent;border:0;color:var(--dim);padding:7px 12px;cursor:pointer;font-size:13px}
+  .seg button.on{background:linear-gradient(135deg,rgba(55,224,255,.30),rgba(155,107,255,.22));color:#eaf6ff}
+  .sw{display:inline-flex;align-items:center;gap:6px}
+  .toollog{height:140px;overflow:auto;background:rgba(0,0,0,.28);border:1px solid var(--brd);border-radius:10px;
+    padding:8px 10px;font-family:var(--mono);font-size:11.5px;color:#bcd0f5;line-height:1.55;white-space:pre-wrap}
+  .toollog .e{color:var(--rd)} .toollog .w{color:var(--am)} .toollog .g{color:var(--gn)}
+  .mono{font-family:var(--mono)}
+  .asrout{height:220px;overflow:auto;background:rgba(0,0,0,.28);border:1px solid var(--brd);border-radius:10px;
+    padding:10px 12px;font-size:14px;line-height:1.7;color:#eaf6ff;white-space:pre-wrap}
+  .asrout .fin{color:#cfe6ff} .asrout .it{color:var(--dim);font-style:italic}
+  .badge2{font-size:10px;color:#ffd27a;border:1px solid rgba(255,210,122,.4);border-radius:6px;padding:0 5px;margin-left:6px}
+  @keyframes alFlash{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,93,115,0)}50%{box-shadow:inset 0 0 0 6px rgba(255,93,115,.65)}}
+  body.alarm{animation:alFlash .5s ease-in-out infinite}
   .tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   /* v2.3.0：顶部毫秒级本地时钟（等宽 + 青色主色 + 毫秒暗一档，窄屏降级） */
   .clock{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:15px;line-height:1;
@@ -4152,11 +4188,171 @@ $('lab2Btn').addEventListener('click',()=>{try{l2Open();}catch(e){console.warn('
 $('toolsBtn').addEventListener('click',e=>{e.stopPropagation();const m=$('toolsMenu');if(m)m.classList.toggle('on');});
 $('toolsMenu').querySelectorAll('button[data-tool]').forEach(b=>{
   b.addEventListener('click',e=>{e.stopPropagation();const m=$('toolsMenu');if(m)m.classList.remove('on');
-    toast('（规划中）'+b.dataset.tool+' —— 暂未开放，敬请期待');});
+    const t=b.dataset.tool;
+    if(t==='环境音频采集')openTool('envMask');
+    else if(t==='声波警戒值守')openTool('alertMask');
+    else if(t==='会议语音转写'){openTool('asrMask');asrDetect();}
+    else toast('（规划中）'+t+' —— 暂未开放，敬请期待');});
 });
 function closeToolsMenu(){const m=$('toolsMenu');if(m)m.classList.remove('on');}
 document.addEventListener('click',e=>{const m=$('toolsMenu');if(m&&m.classList.contains('on')&&!m.contains(e.target)&&e.target.id!=='toolsBtn')closeToolsMenu();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeToolsMenu();});
+// ===================== v2.13.x 音频工具集：三个可用工具 =====================
+function openTool(id){const el=$(id);if(el)el.classList.add('on');}
+['envClose','alertClose','asrClose'].forEach(c=>{const b=$(c);if(b)b.addEventListener('click',()=>{const m=b.closest('.toolmask');if(m)m.classList.remove('on');});});
+['envMask','alertMask','asrMask'].forEach(id=>{const m=$(id);if(m)m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('on');});});
+addEventListener('keydown',e=>{if(e.key==='Escape'){['envMask','alertMask','asrMask'].forEach(id=>{const m=$(id);if(m&&m.classList.contains('on'))m.classList.remove('on');});}});
+const pad2=n=>(''+(n|0)).padStart(2,'0');
+function toolTs(d){d=d||new Date();return d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+'_'+pad2(d.getHours())+pad2(d.getMinutes())+pad2(d.getSeconds());}
+function toolLog(id,msg,cls){const L=$(id);if(!L)return;const d=document.createElement('div');if(cls)d.className=cls;d.textContent='['+toolTs()+'] '+msg;L.appendChild(d);L.scrollTop=L.scrollHeight;}
+
+// ---- ① 环境音频采集 ----
+let envCtx=null,envStream=null,envNode=null,envMute=null,envOn=false,envListening=false,
+    envPcm=[],envTot=0,envPeak=-1e9,envSegT=0,envTimer=null,envWatch=null,envLastDb=-1e9,envHeld=0;
+function envLogAdd(m,c){toolLog('envLog',m,c);}
+async function envStartCapture(){
+  if(!(window.AudioWorkletNode)){toast('❌ 当前环境不支持 AudioWorklet，无法采集');return false;}
+  const cons=micDeviceId?{deviceId:{exact:micDeviceId},echoCancellation:false,noiseSuppression:false,autoGainControl:false}:{echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+  envStream=await navigator.mediaDevices.getUserMedia({audio:cons});
+  envCtx=new(window.AudioContext||window.webkitAudioContext)();if(envCtx.state!=='running')envCtx.resume().catch(()=>{});
+  await envCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([ASREC_SRC],{type:'application/javascript'})));
+  const src=envCtx.createMediaStreamSource(envStream);
+  envNode=new AudioWorkletNode(envCtx,'as-rec');envMute=envCtx.createGain();envMute.gain.value=0;
+  src.connect(envNode);envNode.connect(envMute);envMute.connect(envCtx.destination);
+  envNode.port.onmessage=e=>{const a=e.data;if(!a)return;
+    let s=0;for(let i=0;i<a.length;i++)s+=a[i]*a[i];const rms=Math.sqrt(s/a.length);
+    envLastDb=20*Math.log10(Math.max(rms,1e-5));
+    if(envOn){envPcm.push(a);envTot+=a.length;if(envLastDb>envPeak)envPeak=envLastDb;
+      const segMin=parseFloat($('envSeg').value)||10;
+      if($('envSegOn').checked&&(performance.now()-envSegT)/1000>=segMin*60){envFlushSegment();envSegT=performance.now();}}};
+  return true;
+}
+function envFlushSegment(){
+  if(!envPcm.length)return;const sr=(envCtx&&envCtx.sampleRate)||48000;
+  let tot=0;for(const p of envPcm)tot+=p.length;const pcm=new Float32Array(tot);let o=0;for(const p of envPcm){pcm.set(p,o);o+=p.length;}
+  const blob=l2WavF(pcm,sr);const nm='env_'+toolTs()+'.wav';l2Dl(blob,nm);
+  envLogAdd('分段保存 '+nm+'（'+(tot/sr).toFixed(1)+'s，峰值 '+envPeak.toFixed(1)+' dB）','g');
+  envPcm=[];envTot=0;envPeak=-1e9;
+}
+function envLevelWatch(){
+  const thr=parseFloat($('envThr').value)||-30,dir=$('envDir').value,hold=Math.max(1,parseFloat($('envHold').value)||5);
+  const breach=(dir==='above')?envLastDb>=thr:envLastDb<=thr;
+  if(breach){envHeld+=0.2;if(envHeld>=hold){if(envWatch){clearInterval(envWatch);envWatch=null;}
+    envOn=true;envPcm=[];envTot=0;envPeak=-1e9;envSegT=performance.now();
+    envLogAdd('声级触发 → 开始录制（'+envLastDb.toFixed(1)+' dB）','g');}}
+  else envHeld=0;
+}
+function envStopAll(reason){
+  if(envTimer){clearTimeout(envTimer);envTimer=null;}
+  if(envWatch){clearInterval(envWatch);envWatch=null;}
+  if(envOn){envOn=false;envFlushSegment();}
+  envListening=false;
+  try{if(envNode){envNode.port.onmessage=null;envNode.disconnect();}}catch(_){}
+  try{if(envMute)envMute.disconnect();}catch(_){}
+  try{if(envStream)envStream.getTracks().forEach(t=>t.stop());}catch(_){}
+  try{if(envCtx&&envCtx.state!=='closed')envCtx.close().catch(()=>{});}catch(_){}
+  envNode=null;envMute=null;envStream=null;envCtx=null;envLastDb=-1e9;
+  $('envStart').disabled=false;$('envStop').disabled=true;
+  envLogAdd('停止：'+(reason||'手动'),'w');
+}
+async function envBegin(){
+  try{$('envStart').disabled=true;$('envStop').disabled=false;
+    const ok=await envStartCapture();if(!ok){$('envStart').disabled=false;$('envStop').disabled=true;return;}
+    const mode=$('envMode').querySelector('.on').dataset.m;
+    if(mode==='level'){envListening=true;envOn=false;envHeld=0;envWatch=setInterval(envLevelWatch,200);
+      envLogAdd('监听中（声级触发：'+$('envThr').value+' dB '+($('envDir').value)+' 持续 '+$('envHold').value+'s 自动开录）');}
+    else{envOn=true;envPcm=[];envTot=0;envPeak=-1e9;envSegT=performance.now();
+      envLogAdd('开始采集（'+(mode==='timer'?'定时':'手动')+'）');
+      if(mode==='timer'){const min=Math.max(1,parseFloat($('envDur').value)||30);
+        envTimer=setTimeout(()=>envStopAll('定时到点'),min*60*1000);envLogAdd('定时 '+min+' 分钟自动停止');}}
+  }catch(e){envStopAll('启动失败：'+((e&&e.message)||e));}
+}
+$('envMode').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  $('envMode').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  const m=b.dataset.m;$('envTimerRow').style.display=(m==='timer')?'flex':'none';
+  $('envLevelRow').style.display=(m==='level')?'flex':'none';}));
+$('envStart').addEventListener('click',envBegin);
+$('envStop').addEventListener('click',()=>envStopAll('手动'));
+$('envExpLog').addEventListener('click',()=>{const L=$('envLog');if(!L||!L.children.length){toast('暂无采集日志');return;}
+  let t='AlphaSun 环境音频采集日志\n生成时间 '+new Date().toLocaleString()+'\n\n';for(const c of L.children)t+=c.textContent+'\n';
+  l2Dl(new Blob([t],{type:'text/plain'}),'env_log_'+toolTs()+'.txt');});
+
+// ---- ② 声波警戒值守 ----
+let alCtx=null,alStream=null,alAn=null,alSrc=null,alOn=false,alWatch=null,alHeld=0,alPeak=-1e9;
+function alDbNow(){if(!alAn)return -1e9;const td=new Float32Array(alAn.fftSize);alAn.getFloatTimeDomainData(td);
+  let s=0;for(let i=0;i<td.length;i++)s+=td[i]*td[i];return 20*Math.log10(Math.max(Math.sqrt(s/td.length),1e-5));}
+function alBeep(){try{if(!alCtx)return;const o=alCtx.createOscillator(),g=alCtx.createGain();
+  o.type='square';o.frequency.value=880;o.connect(g);g.connect(alCtx.destination);
+  const t=alCtx.currentTime;g.gain.setValueAtTime(0.18,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.35);
+  o.start(t);o.stop(t+0.36);}catch(_){}}
+function alTick(){
+  const db=alDbNow();if(db<=-1e8)return;$('alertNow').textContent='当前 '+db.toFixed(1)+' dB';
+  if(db>alPeak)alPeak=db;
+  const thr=parseFloat($('alertThr').value)||-30,dir=$('alertDir').value,hold=Math.max(0,parseFloat($('alertHold').value)||2);
+  const breach=(dir==='above')?db>=thr:db<=thr;
+  if(breach){alHeld+=0.15;if(alHeld>=hold){alHeld=0;
+    if($('alertFlash').checked)document.body.classList.add('alarm');
+    if($('alertBeep').checked)alBeep();
+    toolLog('alertLog','⚠️ 越限 '+db.toFixed(1)+' dB（'+dir+' 阈值 '+$('alertThr').value+'）峰值 '+alPeak.toFixed(1),'e');
+    if($('alertFlash').checked)setTimeout(()=>document.body.classList.remove('alarm'),1200);}}
+  else alHeld=0;
+}
+async function alBegin(){
+  try{$('alertStart').disabled=true;$('alertStop').disabled=false;
+    const cons=micDeviceId?{deviceId:{exact:micDeviceId},echoCancellation:false,noiseSuppression:false,autoGainControl:false}:{echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+    alStream=await navigator.mediaDevices.getUserMedia({audio:cons});
+    alCtx=new(window.AudioContext||window.webkitAudioContext)();if(alCtx.state!=='running')alCtx.resume().catch(()=>{});
+    alAn=alCtx.createAnalyser();alAn.fftSize=2048;alSrc=alCtx.createMediaStreamSource(alStream);alSrc.connect(alAn);
+    alOn=true;alHeld=0;alPeak=-1e9;$('alertStat').textContent='值守中';alWatch=setInterval(alTick,150);
+    toolLog('alertLog','开始值守（阈值 '+$('alertThr').value+' dB '+$('alertDir').value+' 持续 '+$('alertHold').value+'s）');
+  }catch(e){alStopAll('启动失败：'+((e&&e.message)||e));}
+}
+function alStopAll(reason){
+  if(alWatch){clearInterval(alWatch);alWatch=null;}document.body.classList.remove('alarm');
+  try{if(alSrc)alSrc.disconnect();}catch(_){}
+  try{if(alStream)alStream.getTracks().forEach(t=>t.stop());}catch(_){}
+  try{if(alCtx&&alCtx.state!=='closed')alCtx.close().catch(()=>{});}catch(_){}
+  alOn=false;alSrc=null;alStream=null;alCtx=null;
+  $('alertStart').disabled=false;$('alertStop').disabled=true;$('alertStat').textContent='待命';$('alertNow').textContent='当前 -- dB';
+  toolLog('alertLog','停止值守：'+(reason||'手动'),'w');
+}
+$('alertStart').addEventListener('click',alBegin);
+$('alertStop').addEventListener('click',()=>alStopAll('手动'));
+$('alertExpLog').addEventListener('click',()=>{const L=$('alertLog');if(!L||!L.children.length){toast('暂无值守日志');return;}
+  let t='AlphaSun 声波警戒值守日志\n生成时间 '+new Date().toLocaleString()+'\n\n';for(const c of L.children)t+=c.textContent+'\n';
+  l2Dl(new Blob([t],{type:'text/plain'}),'alert_log_'+toolTs()+'.txt');});
+
+// ---- ③ 会议语音转写 ----
+let asrOn=false,asrFinal='',asrT0=null;
+function asrDetect(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  $('asrEng').textContent=SR?'引擎：Web Speech（在线）':'引擎：不支持';}
+function fmtSrt(d){const p=n=>(''+(n|0)).padStart(2,'0');return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())+','+(''+(d.getMilliseconds()|0)).padStart(3,'0');}
+function renderAsr(it){const O=$('asrOut');if(!O)return;O.innerHTML='';
+  const f=document.createElement('div');f.className='fin';f.textContent=asrFinal;
+  if(it){const i=document.createElement('div');i.className='it';i.textContent=it;O.appendChild(f);O.appendChild(i);}else O.appendChild(f);
+  O.scrollTop=O.scrollHeight;}
+function asrBegin(){
+  setupASR();
+  if(!recog){toast('❌ 当前环境不支持语音识别（浏览器无 Web Speech API 或离线不可用）');$('asrEng').textContent='引擎：不支持';return;}
+  recog.lang=$('asrLang').value;recog.continuous=true;recog.interimResults=$('asrInt').checked;
+  recog.onresult=e=>{let fin='',it='';for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript;else it+=e.results[i][0].transcript;}
+    asrFinal+=fin;renderAsr(it);};
+  recog.onerror=ev=>{if(ev.error==='network')$('asrStat').textContent='⚠️ 需联网（Web Speech 走云端）';else if(ev.error!=='no-speech')$('asrStat').textContent='⚠️ '+ev.error;};
+  recog.onend=()=>{if(asrOn){try{recog.start();}catch(_){}}};
+  asrOn=true;asrFinal='';asrT0=new Date();$('asrOut').textContent='';
+  try{recog.start();}catch(e){$('asrStat').textContent='启动失败：'+((e&&e.message)||e);return;}
+  $('asrStart').disabled=true;$('asrStop').disabled=false;$('asrEng').textContent='引擎：Web Speech（在线）';$('asrStat').textContent='转写中…';
+}
+function asrStop(){if(recog){try{recog.stop();}catch(_){}}asrOn=false;
+  $('asrStart').disabled=false;$('asrStop').disabled=true;$('asrStat').textContent='已停止';renderAsr('');}
+$('asrStart').addEventListener('click',asrBegin);
+$('asrStop').addEventListener('click',asrStop);
+$('asrCopy').addEventListener('click',()=>{if(!asrFinal){toast('暂无文字稿');return;}
+  if(navigator.clipboard)navigator.clipboard.writeText(asrFinal).then(()=>toast('已复制文字稿'),()=>toast('复制失败'));else toast('复制失败');});
+$('asrExp').addEventListener('click',()=>{if(!asrFinal){toast('暂无文字稿');return;}
+  l2Dl(new Blob([asrFinal],{type:'text/plain'}),'meeting_'+toolTs()+'.txt');
+  const srt='1\n'+fmtSrt(asrT0)+' --> '+fmtSrt(new Date())+'\n'+asrFinal+'\n';
+  l2Dl(new Blob([srt],{type:'text/plain'}),'meeting_'+toolTs()+'.srt');toast('已导出 txt / srt');});
 let toastTmr=null;
 function toast(msg){const t=$('toast');if(!t)return;t.textContent=msg;t.classList.add('on');clearTimeout(toastTmr);toastTmr=setTimeout(()=>t.classList.remove('on'),2600);}
 $('lab2Close').addEventListener('click',()=>{try{l2Close();}
@@ -4306,6 +4502,75 @@ resize();frame();
 <!-- v2.0.0 平台专属运行层：桌面自检层（仅 Electron 激活）+ 移动生命周期桥（仅 Capacitor 激活），网页版自动惰性跳过 -->
 <script src="desktop/boot.js"></script>
 <script src="mobile/bridge.js"></script>
+  <!-- v2.13.x 音频工具集①：环境音频采集 -->
+  <div class="toolmask" id="envMask">
+    <div class="toolcard">
+      <div class="toolhead"><span class="toolttl">🌿 环境音频采集</span><button class="toolx" id="envClose">✕</button></div>
+      <div class="toolbody">
+        <div class="toolrow"><label>触发模式</label>
+          <div class="seg" id="envMode">
+            <button data-m="manual" class="on">手动</button>
+            <button data-m="timer">定时</button>
+            <button data-m="level">声级触发</button>
+          </div>
+        </div>
+        <div class="toolrow" id="envTimerRow" style="display:none"><label>时长(分钟)</label>
+          <input id="envDur" type="number" min="1" max="1440" value="30">
+          <span class="hint">到点自动停止并保存</span></div>
+        <div class="toolrow" id="envLevelRow" style="display:none"><label>阈值 dB</label>
+          <input id="envThr" type="number" step="1" value="-30">
+          <label>方向</label><select id="envDir"><option value="above">高于</option><option value="below">低于</option></select>
+          <label>持续(秒)</label><input id="envHold" type="number" min="1" max="600" value="5"></div>
+        <div class="toolrow"><label class="sw"><input id="envSegOn" type="checkbox" checked> 自动分段</label>
+          <span class="hint">每</span><input id="envSeg" type="number" min="1" max="240" value="10" style="width:54px">
+          <span class="hint">分钟切一个文件</span></div>
+        <div class="toolrow"><button class="cap2" id="envStart">▶ 开始采集</button>
+          <button class="cap2" id="envStop" disabled>■ 停止</button>
+          <span id="envStat" class="hint">待命</span></div>
+        <div class="toollog" id="envLog"></div>
+        <div class="toolrow"><button class="cap2" id="envExpLog">导出采集日志</button></div>
+      </div>
+    </div>
+  </div>
+  <!-- v2.13.x 音频工具集②：声波警戒值守 -->
+  <div class="toolmask" id="alertMask">
+    <div class="toolcard">
+      <div class="toolhead"><span class="toolttl">🛡️ 声波警戒值守</span><button class="toolx" id="alertClose">✕</button></div>
+      <div class="toolbody">
+        <div class="toolrow"><label>阈值 dB</label><input id="alertThr" type="number" step="1" value="-30">
+          <span class="hint">与顶栏 dB 同标度（≈ -60 静音 ~ 0 满量程）</span></div>
+        <div class="toolrow"><label>方向</label><select id="alertDir"><option value="above">高于</option><option value="below">低于</option></select>
+          <label>持续(秒)</label><input id="alertHold" type="number" min="0" max="600" value="2"></div>
+        <div class="toolrow"><label class="sw"><input id="alertFlash" type="checkbox" checked> 屏幕闪烁</label>
+          <label class="sw"><input id="alertBeep" type="checkbox" checked> 提示音</label></div>
+        <div class="toolrow"><button class="cap2" id="alertStart">▶ 开始值守</button>
+          <button class="cap2" id="alertStop" disabled>■ 停止</button>
+          <span id="alertStat" class="hint">待命</span></div>
+        <div class="toolrow"><span id="alertNow" class="mono">当前 -- dB</span></div>
+        <div class="toollog" id="alertLog"></div>
+        <div class="toolrow"><button class="cap2" id="alertExpLog">导出值守日志</button></div>
+      </div>
+    </div>
+  </div>
+  <!-- v2.13.x 音频工具集③：会议语音转写 -->
+  <div class="toolmask" id="asrMask">
+    <div class="toolcard">
+      <div class="toolhead"><span class="toolttl">🎙️ 会议语音转写 <span class="badge2" id="asrEng">引擎：检测中</span></span>
+        <button class="toolx" id="asrClose">✕</button></div>
+      <div class="toolbody">
+        <div class="toolrow"><label>语言</label>
+          <select id="asrLang"><option value="zh-CN" selected>中文（普通话）</option><option value="zh-CN-yue">粤语</option><option value="en-US">English</option></select>
+          <label class="sw"><input id="asrInt" type="checkbox" checked> 实时中间结果</label></div>
+        <div class="toolrow"><button class="cap2" id="asrStart">▶ 开始转写</button>
+          <button class="cap2" id="asrStop" disabled>■ 停止</button>
+          <span id="asrStat" class="hint">待命</span></div>
+        <div class="asrout" id="asrOut"></div>
+        <div class="toolrow"><button class="cap2" id="asrCopy">复制文字稿</button>
+          <button class="cap2" id="asrExp">导出文字稿</button>
+          <span class="hint">支持 txt / srt</span></div>
+      </div>
+    </div>
+  </div>
 <div id="toast" class="toast"></div>
 </body>
 </html>
