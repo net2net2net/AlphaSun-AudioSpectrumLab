@@ -13,11 +13,11 @@
     "check:all": "node tools/check.js && node tools/qa-gate.js",
     "algo": "node tools/algo-selftest.js",
     "bump": "node tools/bump-version.js",
-    "dist": "node tools/check.js && electron-builder --win --linux --mac",
-    "dist:win": "node tools/check.js && node tools/build-win.js",
-    "dist:portable": "node tools/check.js && electron-builder --win portable",
-    "dist:linux": "node tools/check.js && electron-builder --linux",
-    "dist:mac": "node tools/check.js && electron-builder --mac",
+    "dist": "node tools/check.js && node tools/build-dist.js win linux",
+    "dist:win": "node tools/check.js && node tools/build-dist.js win",
+    "dist:portable": "node tools/check.js && node tools/build-dist.js win",
+    "dist:linux": "node tools/check.js && node tools/build-dist.js linux",
+    "dist:mac": "node tools/check.js && node tools/build-dist.js mac",
     "sync": "node sync-www.js && node tools/cap-copy.js && node tools/sync-vosk.js && node tools/check.js"
   },
   "build": {
