@@ -4681,6 +4681,9 @@ try{const pv=localStorage.getItem(ENV_PLACE_KEY);if(pv)$('envPlace').value=pv;}c
    状态机：idle → eval（本底评估）→ normal(蓝) → warn(黄) → alarm(红) → 回落 normal
    事件：进入 warn/alarm 开启，回落 normal 持续 release 秒或超最长时长后结束，
         记录起止时间 / 音频分析 / 录音（可回放）/ 告警图像与视频。            */
+// 采集链路全局状态（alWatch/alPeak 等被 alStopAll 与顶部读数复用，必须在此声明：
+// 脚本为 'use strict'，未声明变量赋值会直接抛 ReferenceError）
+let alCtx=null,alStream=null,alAn=null,alSrc=null,alOn=false,alWatch=null,alHeld=0,alPeak=-1e9;
 const GUARD={
   state:'idle',floor:-60,thrWarn:-30,thrAlarm:-25,manual:false,
   t0:null,evalBuf:[],evalT0:null,evalSec:5,
@@ -4826,6 +4829,9 @@ async function alEvFinish(){
   GUARD.evs.unshift(ev);
   alLog('事件 #'+ev.id+' 结束（'+GUARD_LV[ev.lv].t+'，时长 '+(ev.durMs/1000).toFixed(1)+'s，峰值 '+ev.peak.toFixed(1)+' dB，均值 '+ev.avg.toFixed(1)+' dB）',ev.lv==='alarm'?'e':'w');
   alRenderEvents();
+  // 归档后立刻刷新顶部读数：退出值守时 alStopAll 会在本函数返回后马上 cancelAnimationFrame，
+  // 若只依赖下一帧，事件计数会停在旧值（实测退出后 gEvNum 仍显示 0）。
+  alPaintTop();
 }
 function alEvName(ev,kind){
   const p=n=>(''+(n|0)).padStart(2,'0');const d=ev.tStart;
@@ -5025,12 +5031,15 @@ async function alBegin(){
     alStream=await navigator.mediaDevices.getUserMedia({audio:cons});
     alCtx=new(window.AudioContext||window.webkitAudioContext)();if(alCtx.state!=='running')alCtx.resume().catch(()=>{});
     alAn=alCtx.createAnalyser();alAn.fftSize=2048;alSrc=alCtx.createMediaStreamSource(alStream);alSrc.connect(alAn);
-    // 事件录音支路
-    const proc=alCtx.createScriptProcessor(4096,1,1),mute=alCtx.createGain();mute.gain.value=0;
-    proc.onaudioprocess=e=>{const d=e.inputBuffer.getChannelData(0);alWaveFeed(d);
-      if(GUARD.ev){GUARD.pcm.push(new Float32Array(d));GUARD.pcmLen+=d.length;}};
-    alSrc.connect(proc);proc.connect(mute);mute.connect(alCtx.destination);
-    GUARD.proc=proc;GUARD.mute=mute;
+    // 事件录音支路：复用项目统一的 AudioWorklet 直采 PCM（as-rec，与环境采集/转写同款）。
+    // ⚠ 不用 ScriptProcessorNode：已废弃，且实测在本机 Electron 28 下开始值守后会导致渲染进程崩溃。
+    if(!(window.AudioWorkletNode&&alCtx.audioWorklet))throw new Error('当前环境不支持 AudioWorklet，无法值守');
+    await alCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([ASREC_SRC],{type:'application/javascript'})));
+    GUARD.node=new AudioWorkletNode(alCtx,'as-rec');
+    GUARD.mute=alCtx.createGain();GUARD.mute.gain.value=0;
+    alSrc.connect(GUARD.node);GUARD.node.connect(GUARD.mute);GUARD.mute.connect(alCtx.destination);
+    GUARD.node.port.onmessage=e=>{const a=e.data;if(!a)return;alWaveFeed(a);
+      if(GUARD.ev){GUARD.pcm.push(new Float32Array(a));GUARD.pcmLen+=a.length;}};
     alOn=true;alHeld=0;alPeak=-1e9;GUARD.t0=Date.now();GUARD.relHeld=0;
     GUARD.evalSec=Math.max(2,parseFloat(($('alertEval')||{}).value||'5'));
     if($('alertAuto').checked){GUARD.state='eval';GUARD.evalBuf=[];GUARD.evalT0=Date.now();
@@ -5054,7 +5063,7 @@ async function alStopAll(reason){
   if(alWatch){clearInterval(alWatch);alWatch=null;}document.body.classList.remove('alarm');
   if(GUARD.ev)await alEvFinish();
   if(GUARD.raf){cancelAnimationFrame(GUARD.raf);GUARD.raf=null;}
-  try{if(GUARD.proc){GUARD.proc.onaudioprocess=null;GUARD.proc.disconnect();}}catch(_){}
+  try{if(GUARD.node){GUARD.node.port.onmessage=null;GUARD.node.disconnect();}}catch(_){}
   try{if(GUARD.mute)GUARD.mute.disconnect();}catch(_){}
   try{if(alSrc)alSrc.disconnect();}catch(_){}
   try{if(alStream)alStream.getTracks().forEach(t=>t.stop());}catch(_){}
