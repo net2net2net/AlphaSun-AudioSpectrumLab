@@ -1,7 +1,7 @@
 // AlphaSun 声波分析仪 · Electron 主进程（v2.0.0 桌面稳定性架构）
 // 职责：窗口管理 / 麦克风权限授权 / 系统信息桥加载 / 崩溃捕获与日志 / 单实例锁
 // ⚠ 时序红线：session 模块只能在 app ready 后访问；process.on 兜底必须在模块顶层注册（任何更早的崩溃都要能落日志）
-const { app, BrowserWindow, session, dialog } = require('electron');
+const { app, BrowserWindow, session, dialog, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -64,6 +64,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // 移除 Electron 默认应用菜单栏（"File / Edit / View / Window / Help"）—— 当前软件功能无需该菜单，
+  // 保留只会白白占用顶栏高度；去掉后窗口客户区直接顶到标题，分析面积更大。
+  // Windows/Linux 下此调用会完全隐藏菜单栏；macOS 受系统规范限制仅保留最小应用菜单（无可避免）。
+  Menu.setApplicationMenu(null);
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
