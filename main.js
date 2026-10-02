@@ -237,6 +237,126 @@ ipcMain.handle('asr:saveWav', async (_e, { name, wavBase64 }) => {
   }
 });
 
+/* ==========================================================================
+   声波警戒值守：全屏 / 事件媒体保存 / 告警通知推送
+   ========================================================================== */
+const crypto = require('crypto');
+
+/** 进入/退出全屏（值守台全屏模式）。浏览器版无此 IPC，前端降级用 requestFullscreen。 */
+ipcMain.handle('win:fullscreen', async (_e, on) => {
+  try {
+    if (!win) return { ok: false, message: '窗口未创建' };
+    win.setFullScreen(!!on);
+    return { ok: true, fullScreen: win.isFullScreen() };
+  } catch (e) {
+    return { ok: false, message: (e && e.message) || String(e) };
+  }
+});
+
+/** 保存事件媒体（音频 wav / 图像 jpg / 视频 webm）到 下载目录/AlphaSun警戒事件/<子目录> */
+ipcMain.handle('guard:saveMedia', async (_e, { name, b64, subdir }) => {
+  try {
+    const base = path.join(app.getPath('downloads'), 'AlphaSun警戒事件');
+    const dir = subdir ? path.join(base, String(subdir).replace(/[\\/:*?"<>|]+/g, '_')) : base;
+    fs.mkdirSync(dir, { recursive: true });
+    const p = path.join(dir, String(name || ('media_' + Date.now())).replace(/[\\/:*?"<>|]+/g, '_'));
+    fs.writeFileSync(p, Buffer.from(String(b64 || ''), 'base64'));
+    return { ok: true, path: p };
+  } catch (e) {
+    crashLog('guard-saveMedia', (e && e.message) || String(e));
+    return { ok: false, message: (e && e.message) || String(e) };
+  }
+});
+
+/** 列出已保存的事件媒体目录（供界面回看） */
+ipcMain.handle('guard:listMedia', async () => {
+  try {
+    const base = path.join(app.getPath('downloads'), 'AlphaSun警戒事件');
+    if (!fs.existsSync(base)) return { ok: true, dir: base, items: [] };
+    const items = fs.readdirSync(base, { withFileTypes: true }).map(d => ({
+      name: d.name, isDir: d.isDirectory(),
+      size: d.isDirectory() ? 0 : fs.statSync(path.join(base, d.name)).size,
+    }));
+    return { ok: true, dir: base, items };
+  } catch (e) {
+    return { ok: false, message: (e && e.message) || String(e) };
+  }
+});
+
+/**
+ * 告警通知推送。
+ * 支持通道：wecom(企业微信群机器人) / dingtalk(钉钉) / feishu(飞书) / serverchan(Server酱→微信)
+ *           / webhook(自定义 POST JSON) / sms_aliyun(阿里云短信)
+ * ⚠ 各通道均需用户自备凭据，本环境无法真机验证；发送失败一律返回明确错误，不静默吞掉。
+ */
+async function notifyDispatch(ch, cfg, title, body) {
+  if (ch === 'wecom' || ch === 'dingtalk' || ch === 'feishu' || ch === 'webhook') {
+    const url = cfg.url;
+    if (!url) return { ok: false, message: '未配置 Webhook 地址' };
+    let payload;
+    if (ch === 'wecom') payload = { msgtype: 'text', text: { content: title + '\n' + body } };
+    else if (ch === 'feishu') payload = { msg_type: 'text', content: { text: title + '\n' + body } };
+    else if (ch === 'dingtalk') payload = { msgtype: 'text', text: { content: title + '\n' + body } };
+    else payload = { title: title, body: body, text: title + '\n' + body, level: cfg.level || 'alarm' };
+    const r = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const txt = await r.text();
+    return { ok: r.ok, status: r.status, resp: txt.slice(0, 300) };
+  }
+  if (ch === 'serverchan') {
+    if (!cfg.key) return { ok: false, message: '未配置 Server酱 SendKey' };
+    const u = 'https://sctapi.ftqq.com/' + encodeURIComponent(cfg.key) + '.send'
+      + '?title=' + encodeURIComponent(title) + '&desp=' + encodeURIComponent(body);
+    const r = await fetch(u);
+    return { ok: r.ok, status: r.status, resp: (await r.text()).slice(0, 300) };
+  }
+  if (ch === 'sms_aliyun') {
+    // 阿里云短信 OpenAPI（POP 签名：HMAC-SHA1 + SHA1 规范串）。未实测，需用户自备账号。
+    const need = ['accessKeyId', 'accessKeySecret', 'signName', 'templateCode', 'phone'];
+    const miss = need.filter(k => !cfg[k]);
+    if (miss.length) return { ok: false, message: '短信配置缺失：' + miss.join(',') };
+    const params = {
+      AccessKeyId: cfg.accessKeyId, Action: 'SendSms', Format: 'JSON',
+      PhoneNumbers: cfg.phone, RegionId: 'cn-hangzhou', SignName: cfg.signName,
+      SignatureMethod: 'HMAC-SHA1', SignatureNonce: crypto.randomUUID(),
+      SignatureVersion: '1.0', TemplateCode: cfg.templateCode,
+      TemplateParam: JSON.stringify({ level: cfg.level || '告警', title: title.slice(0, 20), time: new Date().toLocaleString('zh-CN') }),
+      Timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'), Version: '2017-05-25',
+    };
+    const sorted = Object.keys(params).sort();
+    const canon = sorted.map(k => enc(k) + '=' + enc(params[k])).join('&');
+    const strToSign = 'POST&%2F&' + enc(canon);
+    const sign = crypto.createHmac('sha1', cfg.accessKeySecret + '&').update(strToSign).digest('base64');
+    const bodyStr = sorted.map(k => enc(k) + '=' + enc(params[k])).join('&') + '&Signature=' + enc(sign);
+    const r = await fetch('https://dysmsapi.aliyuncs.com/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: bodyStr,
+    });
+    return { ok: r.ok, status: r.status, resp: (await r.text()).slice(0, 400) };
+  }
+  return { ok: false, message: '未知通道：' + ch };
+}
+function enc(s) {
+  return encodeURIComponent(String(s)).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+}
+
+ipcMain.handle('guard:notify', async (_e, { channels, title, body }) => {
+  const out = [];
+  for (const c of (channels || [])) {
+    if (!c || !c.type) continue;
+    try {
+      const r = await notifyDispatch(c.type, c, title, body);
+      out.push({ type: c.type, ok: !!r.ok, message: r.message || ('HTTP ' + r.status), resp: r.resp });
+    } catch (e) {
+      out.push({ type: c.type, ok: false, message: (e && e.message) || String(e) });
+    }
+  }
+  return { results: out };
+});
+
 app.whenReady().then(() => {
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
