@@ -35,6 +35,12 @@ v2.17.0 修值守台崩溃时，只换了值守那一处录音支路。事后排
 
 ### 交付（MD5）
 
+- Windows 便携版 `AlphaSun-AudioLab-2.17.1-portable.exe`（68 MB）：`5cf69fbfcbf17a31384c2ef08f9ccd00`
+- Linux x64 `AlphaSun-AudioLab-2.17.1-linux-x64.tar.gz`（99 MB）：`b2daece734cc96becd34f4bcba14bf1a`
+- `npm run sync` 三处源码 MD5 一致（根 / `www/` / Android assets）；`check.js` 五阶段全绿。
+- 门禁：`npm run qa` **44 / 44**；`npm run guardsmoke` **21 / 21**；`npm run envtest` **32 / 32**。
+- `index.html` 全局检索 `ScriptProcessorNode` 计数为 **0**（两条录音链路均已改用 AudioWorklet）。
+
 ## v2.17.0（2026-10-03）—— 声波警戒值守台：全屏值守 / 波形+环形仪表 / 三色警戒灯 / 事件记录 / 摄像头联动 / 告警推送
 
 ### ① 全屏值守台（新增，核心）
