@@ -3,6 +3,31 @@
 > 每轮迭代必须追加。版本五点同步（index APP_VER / appVer span / package.json / sw.js / gradle versionName）
 > 由 `node tools/bump-version.js x.y.z` 统一完成（幂等 + 回读校验）。
 
+
+## v2.14.0（2026-10-02）—— 音频工具集三工具落地为可用 + 两处缺陷修复
+
+### 音频工具集：三个待建工具由「规划中」变为可用
+- **环境音频采集**：独立 `getUserMedia` + AudioWorklet 采集 PCM、实时算 dB；支持手动 / 定时 / 声级触发（阈值+方向+持续 N 秒）三种模式；按段切分存 16bit WAV；可导出采集日志 txt。
+- **声波警戒值守**：独立 `AnalyserNode` 实时算声压级，每 150ms 比对阈值；超限触发整页闪烁 + 880Hz 提示音（WebAudio square）+ 写警戒日志；可导出 txt。
+- **会议语音转写**：`setupASR()` + Web Speech API（zh-CN，**在线引擎**，UI 已诚实标注）；实时中间结果 + 最终文本累积；支持复制与导出 txt / srt 双文件。离线引擎（Vosk WASM + 中文模型）体积大，本轮未做。
+
+### 缺陷修复
+- **① 主界面加载即报 `TypeError @ index.html:4270`**：工具块顶层绑定写在主 `<script>` 内，而三个工具面板 DOM（envMask/alertMask/asrMask）定义在脚本之后，脚本解析时 `$('envMode')` 为 null。修复：将工具块顶层绑定整体包进 `document.addEventListener('DOMContentLoaded', …)`，待面板 DOM 解析后再绑定（`toast` 保留在外层供 L2 使用）。
+- **② 「音频工具集」弹出框被遮挡**：原 `position:absolute` 困在顶栏层叠上下文内、落在主画布之下。修复：改 `position:fixed` 居中（`translate(-50%,-50%)`）+ `z-index:86`，并新增专用居中动画 `tmPop2`（原 `tmPop` 被全屏遮罩 `.toolmask` 共用，不能改）。现弹出框居中显示、不被遮挡。
+
+### 版本号
+- 五点统一升级到 **v2.14.0**（index `APP_VER` / `appVer` span / `package.json` / `sw.js` CACHE / gradle `versionName`），`versionCode 25 → 26`；由 `node tools/bump-version.js 2.14.0` 幂等完成并回读校验。
+
+### 交付（MD5）
+- `AlphaSun-AudioLab-2.14.0-portable.exe`（66.6MB，版本资源 2.14.0）`e52bf4e29f43651c060f747857f11d6f`
+- `AlphaSun-AudioLab-2.14.0-linux-x64.tar.gz`（94.5MB）`42ed09cfd8ae29e531f70d5fe2df1b6c`
+- `AlphaSun-AudioLab-2.14.0.apk`：**本环境无签名密钥未重编**（仓库无 `.jks`/`.keystore`），待用户本机签名重编以含三工具 + 本轮两处修复。
+
+### 校验
+- `validate.js` 全绿（246 DOM id 全部存在、E 映射 159 key、版本号五点一致 v2.14.0、无陈旧版本号残留）。
+- `npm run sync` 三处源码 MD5 一致（根 / `www/` / Android assets）；`check.js` 五阶段全绿（A/C 计权 + BPM 自检 / 三处一致 / 离线 lamejs）。
+
+
 ## v2.13.0（2026-10-02）—— 分析能力增强 + 文档体系重建
 
 ### 新增分析能力（专业声学指标）
