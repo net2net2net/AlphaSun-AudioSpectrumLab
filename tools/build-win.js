@@ -9,6 +9,11 @@
  * 解决：把打包输出目录指向本机本地临时盘（os.tmpdir()，位于 C: 本地盘），
  * rcedit 即可正常提交；打包完成后再把生成的 portable EXE 复制回项目 dist/。
  * 这样 `npm run dist:win` 在同步盘、网络盘、普通本地盘上都能稳定产出带图标的 EXE。
+ *
+ * ⚠️ 已废弃（2026-10-03）：本脚本只覆盖 win、且临时目录名固定易冲突。
+ * 统一改用 `tools/build-dist.js`（支持 win/linux/mac，临时目录走 os.tmpdir() 且用完即删，
+ * 产物同样回落到项目 dist/）。`package.json` 的 dist:* 已全部指向 build-dist.js，
+ * 保留本文件仅供追溯，不要再调用。
  */
 const { execSync } = require('child_process');
 const fs = require('fs');
