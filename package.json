@@ -13,6 +13,7 @@
     "check:all": "node tools/check.js && node tools/qa-gate.js",
     "algo": "node tools/algo-selftest.js",
     "envtest": "node tools/env-report-selftest.js",
+    "guardsmoke": "node tools/guard-smoke.js",
     "bump": "node tools/bump-version.js",
     "dist": "node tools/check.js && node tools/build-dist.js win linux",
     "dist:win": "node tools/check.js && node tools/build-dist.js win",
