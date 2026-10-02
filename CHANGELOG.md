@@ -4,6 +4,30 @@
 > 由 `node tools/bump-version.js x.y.z` 统一完成（幂等 + 回读校验）。
 
 
+
+## v2.14.1（2026-10-02）—— 修复「音频工具集」弹出框被遮挡
+
+### 根因（层叠上下文，非定位数值问题）
+- v2.14.0 已把 `.toolsMenu` 改为 `position:fixed` 居中，但**仍被遮挡**。真正原因：主容器 `.app` 为 `position:relative; z-index:1; zoom:var(--zoom)` —— `z-index` 使其成为**层叠上下文**，`zoom` 又使内部 `position:fixed` 改为**相对 `.app` 定位**。因此菜单的 `z-index:86` 只在 `.app` 这个 z-index:1 的上下文内比较，逃不出主画布（`#cv`），无论调到多大都会被盖住。
+
+### 修复
+- 把 `#toolsMenu` **移出 `.app`**，改为 `<body>` 直属子元素（与三个 `.toolmask` 同级，`.app` 在第 923 行即闭合）。这样：`position:fixed` 相对**视口**居中、`z-index:86` 在**根层**参与比较 → 不再被主画布遮挡，真正居中于屏幕。
+- 顺带去掉菜单内已过时的「规划中」角标与「· 规划中」标题（三个工具均已实现），并更新 `toolsBtn` 的 title 文案。
+- CSS 沿用 v2.14.0 的居中方案（`position:fixed; left/top:50%; transform:translate(-50%,-50%)` + 专用动画 `tmPop2`），未再改动。
+
+### 版本号
+- 五点统一升级到 **v2.14.1**，`versionCode 26 → 27`；由 `node tools/bump-version.js 2.14.1` 幂等完成并回读校验。
+
+### 交付（MD5）
+- `AlphaSun-AudioLab-2.14.1-portable.exe`（66.6MB，版本资源 2.14.1）`e8d110756f6b4fd12cefcd7912fee49b`
+- `AlphaSun-AudioLab-2.14.1-linux-x64.tar.gz`（94.5MB）`f5fa09152b5563dc3d894baa8f531228`
+- `AlphaSun-AudioLab-2.14.1.apk`：**本环境无签名密钥未重编**，待用户本机签名重编。
+
+### 校验
+- `node --check` 抽取内联主脚本语法通过；`validate.js` 全绿（246 DOM id、E 映射 159 key、版本五点一致 v2.14.1、无陈旧版本号残留）。
+- `npm run sync` 三处源码 MD5 一致（根 / `www/` / Android assets）；`check.js` 五阶段全绿。
+
+
 ## v2.14.0（2026-10-02）—— 音频工具集三工具落地为可用 + 两处缺陷修复
 
 ### 音频工具集：三个待建工具由「规划中」变为可用
