@@ -122,6 +122,8 @@
   .asrwave{display:block;width:100%;height:72px}
   .asrwavemeta{position:absolute;right:8px;top:6px;display:flex;gap:10px;font-size:11px;color:#9fd7ff;
     background:rgba(4,10,20,.55);border-radius:6px;padding:1px 6px}
+  .envrep{max-height:260px;overflow:auto;background:rgba(0,0,0,.30);border:1px solid var(--brd);border-radius:10px;
+    padding:10px 12px;font-size:12px;line-height:1.65;color:#d8f5e6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;margin:6px 0}
   @keyframes alFlash{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,93,115,0)}50%{box-shadow:inset 0 0 0 6px rgba(255,93,115,.65)}}
   body.alarm{animation:alFlash .5s ease-in-out infinite}
   .tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -606,7 +608,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.15.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.16.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1649,7 +1651,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.15.0',APP_BUILD='20261002';
+const APP_VER='2.16.0',APP_BUILD='20261002';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';}catch(e){}
 // ---- 系统监视（需求#4：顶栏 CPU/内存。桌面版经 preload 桥取真实系统值；网页/移动端无权限显示 —） ----
 function sysTick(){
@@ -4282,10 +4284,93 @@ const pad2=n=>(''+(n|0)).padStart(2,'0');
 function toolTs(d){d=d||new Date();return d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+'_'+pad2(d.getHours())+pad2(d.getMinutes())+pad2(d.getSeconds());}
 function toolLog(id,msg,cls){const L=$(id);if(!L)return;const d=document.createElement('div');if(cls)d.className=cls;d.textContent='['+toolTs()+'] '+msg;L.appendChild(d);L.scrollTop=L.scrollHeight;}
 
-// ---- ① 环境音频采集 ----
-let envCtx=null,envStream=null,envNode=null,envMute=null,envOn=false,envListening=false,
-    envPcm=[],envTot=0,envPeak=-1e9,envSegT=0,envTimer=null,envWatch=null,envLastDb=-1e9,envHeld=0;
+// ---- ① 环境音频采集（v2.16.0：实时波形 + 地点/时间命名 + 多维度环境评估报告）----
+let envCtx=null,envStream=null,envNode=null,envMute=null,envAn=null,envOn=false,envListening=false,
+    envPcm=[],envTot=0,envPeak=-1e9,envSegT=0,envTimer=null,envWatch=null,envLastDb=-1e9,envHeld=0,
+    envSpecTmr=null,envFreq=null,envSegIdx=0;
+/* 统计累积：dB(A) 序列 + 7 频段能量 + 时长。用于停止后生成评估报告。*/
+const ENV_ST={dbA:[],band:new Float64Array(7),n:0,t0:null,sr:48000,samples:0};
+const ENV_BANDS=[[20,60],[60,250],[250,500],[500,2000],[2000,4000],[4000,8000],[8000,16000]];
+const ENV_BAND_NM=['次低频 20-60Hz','低频 60-250Hz','中低频 250-500Hz','中频 500Hz-2kHz','中高频 2-4kHz','高频 4-8kHz','甚高频 8-16kHz'];
+/* IEC 61672-1 A 计权（dB）。独立实现，不复用主分析的 wTabA/wTabC 缓存——
+   两者 fftSize / 采样率不同，共用缓存会互相覆盖导致主界面 dB(A) 出错。*/
+function envAW(f){
+  if(!(f>0))return -80;
+  const f2=f*f;
+  const r=(12194*12194*f2*f2)/((f2+20.6*20.6)*Math.sqrt((f2+107.7*107.7)*(f2+737.9*737.9))*(f2+12194*12194));
+  return 20*Math.log10(Math.max(r,1e-12))+2.0;
+}
 function envLogAdd(m,c){toolLog('envLog',m,c);}
+/* ---------- 地点：输入框内容记忆到 localStorage ---------- */
+const ENV_PLACE_KEY='alphasun.env.place';
+function envPlaceVal(){
+  const v=(($('envPlace')&&$('envPlace').value)||'').trim();
+  return v||'未标注地点';
+}
+function envSafeName(t){return String(t||'').replace(/[\\/:*?"<>|\r\n\t]+/g,'_').slice(0,40);}
+function envStamp(d){
+  const p=n=>(''+(n|0)).padStart(2,'0');const x=d||new Date();
+  return ''+x.getFullYear()+p(x.getMonth()+1)+p(x.getDate())+'-'+p(x.getHours())+p(x.getMinutes());
+}
+function envFileName(kind){
+  // 以「地点 + 时间」标注，便于环境降噪与环境评估归档
+  return '环境采集_'+envSafeName(envPlaceVal())+'_'+envStamp()+(kind?('_'+kind):'')+'.wav';
+}
+/* ---------- 波形（与转写面板同款滚动缓冲，独立实例）---------- */
+const ENV_WAVE=new Float32Array(600);let envWpos=0,envWaveRaf=null;
+function envWaveFeed(d){
+  const PER=8,n=d.length;
+  for(let k=0;k<PER;k++){
+    const a=Math.floor(k*n/PER),b=Math.floor((k+1)*n/PER);
+    let mx=0;for(let i=a;i<b;i++){const v=d[i];if(v>mx)mx=v;if(-v>mx)mx=-v;}
+    ENV_WAVE[envWpos]=mx;envWpos=(envWpos+1)%ENV_WAVE.length;
+  }
+  const lv=$('envLvl');if(lv){let r=0;for(let i=0;i<n;i+=16)r+=d[i]*d[i];
+    const rms=Math.sqrt(r/Math.max(1,Math.ceil(n/16)));lv.textContent=rms>0.0005?(20*Math.log10(rms)).toFixed(1)+' dBFS':'静音';}
+}
+function envWaveDraw(){
+  const ck=$('envClock');
+  if(ck){const el=(envOn||envListening)&&ENV_ST.t0?((Date.now()-ENV_ST.t0)/1000)|0:0;
+    const p=n=>(''+(n|0)).padStart(2,'0');ck.textContent=p(el/60)+':'+p(el%60);}
+  const cv=$('envWave');if(!cv)return;
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth||520,h=cv.clientHeight||64;
+  if(cv.width!==Math.round(w*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);g.fillStyle='rgba(0,0,0,.30)';g.fillRect(0,0,w,h);
+  const mid=h/2;
+  g.strokeStyle='rgba(120,255,190,.22)';g.beginPath();g.moveTo(0,mid);g.lineTo(w,mid);g.stroke();
+  const N=ENV_WAVE.length,bw=w/N;
+  g.fillStyle=(envOn||envListening)?'#4ee8a8':'rgba(78,232,168,.35)';
+  for(let i=0;i<N;i++){
+    const v=Math.max(-1,Math.min(1,ENV_WAVE[i]));
+    const bh=Math.max(1,Math.abs(v)*(h/2-3));
+    g.fillRect(i*bw,mid-bh/2,Math.max(1,bw-0.6),bh);
+  }
+}
+function envWaveStart(){if(envWaveRaf)return;const lp=()=>{envWaveDraw();envWaveRaf=requestAnimationFrame(lp);};lp();}
+function envWaveStop(){if(envWaveRaf)cancelAnimationFrame(envWaveRaf);envWaveRaf=null;}
+/* ---------- 频谱/计权采样（每 200ms）---------- */
+function envSampleSpec(){
+  if(!envAn||!envCtx)return;
+  const n=envAn.frequencyBinCount;
+  if(!envFreq||envFreq.length!==n)envFreq=new Float32Array(n);
+  envAn.getFloatFrequencyData(envFreq);
+  const sr=envCtx.sampleRate,binHz=sr/envAn.fftSize;
+  let sa=0,su=0;const be=new Float64Array(7);
+  for(let i=1;i<n;i++){
+    const db=envFreq[i];if(!isFinite(db))continue;
+    const e=Math.pow(10,db/10),f=i*binHz;
+    sa+=e*Math.pow(10,envAW(f)/10);su+=e;
+    for(let b=0;b<7;b++){if(f>=ENV_BANDS[b][0]&&f<ENV_BANDS[b][1]){be[b]+=e;break;}}
+  }
+  if(su>0){
+    const dbFS=10*Math.log10(Math.max(su,1e-20));
+    ENV_ST.dbA.push(10*Math.log10(Math.max(sa,1e-20)/su)+dbFS);
+    ENV_ST.n++;
+    for(let b=0;b<7;b++)ENV_ST.band[b]+=be[b];
+    ENV_ST.sr=sr;
+  }
+}
 async function envStartCapture(){
   if(!(window.AudioWorkletNode)){toast('❌ 当前环境不支持 AudioWorklet，无法采集');return false;}
   const cons=micDeviceId?{deviceId:{exact:micDeviceId},echoCancellation:false,noiseSuppression:false,autoGainControl:false}:{echoCancellation:false,noiseSuppression:false,autoGainControl:false};
@@ -4294,20 +4379,43 @@ async function envStartCapture(){
   await envCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([ASREC_SRC],{type:'application/javascript'})));
   const src=envCtx.createMediaStreamSource(envStream);
   envNode=new AudioWorkletNode(envCtx,'as-rec');envMute=envCtx.createGain();envMute.gain.value=0;
-  src.connect(envNode);envNode.connect(envMute);envMute.connect(envCtx.destination);
+  // 频谱支路：仅用于统计（计权声级 + 频段能量），不接 destination 以免回放
+  envAn=envCtx.createAnalyser();envAn.fftSize=2048;envAn.smoothingTimeConstant=0;
+  src.connect(envNode);envNode.connect(envMute);envMute.connect(envCtx.destination);src.connect(envAn);
   envNode.port.onmessage=e=>{const a=e.data;if(!a)return;
     let s=0;for(let i=0;i<a.length;i++)s+=a[i]*a[i];const rms=Math.sqrt(s/a.length);
     envLastDb=20*Math.log10(Math.max(rms,1e-5));
-    if(envOn){envPcm.push(a);envTot+=a.length;if(envLastDb>envPeak)envPeak=envLastDb;
+    envWaveFeed(a);
+    if(envOn){envPcm.push(a);envTot+=a.length;ENV_ST.samples+=a.length;if(envLastDb>envPeak)envPeak=envLastDb;
       const segMin=parseFloat($('envSeg').value)||10;
       if($('envSegOn').checked&&(performance.now()-envSegT)/1000>=segMin*60){envFlushSegment();envSegT=performance.now();}}};
+  ENV_ST.dbA=[];ENV_ST.band=new Float64Array(7);ENV_ST.n=0;ENV_ST.t0=Date.now();ENV_ST.samples=0;
+  ENV_ST.sr=envCtx.sampleRate;envSegIdx=0;
+  envSpecTmr=setInterval(envSampleSpec,200);
+  try{const pv=localStorage.getItem(ENV_PLACE_KEY);if(pv&&!($('envPlace')||{}).value)$('envPlace').value=pv;}catch(_){}
   return true;
 }
-function envFlushSegment(){
-  if(!envPcm.length)return;const sr=(envCtx&&envCtx.sampleRate)||48000;
+/* ---------- 保存原始录音（地点 + 时间命名）---------- */
+async function envSaveBlob(blob,name,logIt){
+  if(!blob||blob.size<=44)return false;
+  try{const pv=($('envPlace')&&$('envPlace').value)||'';if(pv)localStorage.setItem(ENV_PLACE_KEY,pv);}catch(_){}
+  if(window.asrCloud&&window.asrCloud.saveWav){
+    try{
+      const b64=ab2b64(await blob.arrayBuffer());
+      const r=await window.asrCloud.saveWav({name:name,wavBase64:b64});
+      if(r&&r.ok){if(logIt)envLogAdd('已保存 '+name+' → '+r.path,'g');toast('已保存：'+name);return true;}
+      diagAdd('warn','环境录音保存失败：'+((r&&r.message)||'未知'));
+    }catch(e){diagAdd('warn','环境录音保存异常：'+((e&&e.message)||e));}
+  }
+  l2Dl(blob,name);if(logIt)envLogAdd('已导出 '+name,'g');toast('已导出：'+name);return true;
+}
+async function envFlushSegment(){
+  if(!envPcm.length)return;const sr=(envCtx&&envCtx.sampleRate)||ENV_ST.sr||48000;
   let tot=0;for(const p of envPcm)tot+=p.length;const pcm=new Float32Array(tot);let o=0;for(const p of envPcm){pcm.set(p,o);o+=p.length;}
-  const blob=l2WavF(pcm,sr);const nm='env_'+toolTs()+'.wav';l2Dl(blob,nm);
-  envLogAdd('分段保存 '+nm+'（'+(tot/sr).toFixed(1)+'s，峰值 '+envPeak.toFixed(1)+' dB）','g');
+  envSegIdx++;
+  const kind=$('envSegOn').checked?('段'+envSegIdx):null;
+  await envSaveBlob(l2WavF(pcm,sr),envFileName(kind),true);
+  envLogAdd('分段完成（'+(tot/sr).toFixed(1)+'s，峰值 '+envPeak.toFixed(1)+' dBFS，累计 '+ENV_ST.n+' 次频谱采样）','g');
   envPcm=[];envTot=0;envPeak=-1e9;
 }
 function envLevelWatch(){
@@ -4318,27 +4426,167 @@ function envLevelWatch(){
     envLogAdd('声级触发 → 开始录制（'+envLastDb.toFixed(1)+' dB）','g');}}
   else envHeld=0;
 }
+/* ---------- 统计与评估 ---------- */
+function envStats(){
+  const a=ENV_ST.dbA.slice().sort((x,y)=>x-y),n=a.length;
+  if(!n)return null;
+  let se=0;for(const v of ENV_ST.dbA)se+=Math.pow(10,v/10);
+  const leq=10*Math.log10(se/n);                       // 等效连续声级（能量平均，非算术平均）
+  const pctAt=p=>a[Math.min(n-1,Math.max(0,Math.floor(n*(1-p/100))))];  // L10 → 第 90 百分位
+  const l10=pctAt(10),l50=pctAt(50),l90=pctAt(90);
+  let bt=0;for(let b=0;b<7;b++)bt+=ENV_ST.band[b];
+  const pct=[];for(let b=0;b<7;b++)pct.push(bt>0?ENV_ST.band[b]/bt*100:0);
+  const cal=parseFloat(($('envCalib')&&$('envCalib').value)||'0')||0;   // 用户可选的校准偏置
+  return {n,leq,l10,l50,l90,lmax:a[n-1],lmin:a[0],fluct:l10-l90,pct,cal,
+    dur:ENV_ST.t0?(Date.now()-ENV_ST.t0)/1000:0,sr:ENV_ST.sr};
+}
+/* 舒适度分级：以 GB 3096-2008《声环境质量标准》昼间限值为参照刻度。
+   ⚠ 本设备未经声级计校准，读数是相对满量程的数字电平 + 用户偏置，只能作相对评价，
+      不能作为合规判定或法定测量依据。 */
+function envComfort(leq){
+  if(leq<45)return {lv:'A · 非常安静',desc:'接近 GB 3096 0 类（疗养区昼间 50 dB）以内水平',
+    fit:'适合：录音、睡眠、疗养、精细作业',unfit:'无明显不宜活动'};
+  if(leq<55)return {lv:'B · 安静',desc:'落在 GB 3096 1 类（居住文教区昼间 55 dB）限值附近',
+    fit:'适合：办公、会议、教学、一般休息',unfit:'不宜：专业录音棚级收音'};
+  if(leq<65)return {lv:'C · 一般',desc:'接近 GB 3096 2～3 类之间（60 / 65 dB）',
+    fit:'适合：短时作业、一般通行',unfit:'不宜：长时间专注办公、教学、睡眠；长期暴露易疲劳烦躁'};
+  if(leq<75)return {lv:'D · 较吵',desc:'已超过 GB 3096 3 类（工业区昼间 65 dB）',
+    fit:'仅适合：佩戴听力防护的短时作业',unfit:'不宜：无防护长时间停留、会议与教学、居住休息'};
+  return {lv:'E · 吵闹',desc:'超过 GB 3096 4a 类（交通干线昼间 70 dB）',
+    fit:'不适合任何无防护停留',unfit:'必须佩戴听力防护；长期暴露有听力损伤风险'};
+}
+/* 多维度声源推断：基于频段构成 + 起伏度的启发式规则。
+   必须标注为推断值——未经校准测量，也不做机器学习分类，仅供现场排查参考。*/
+function envSources(s){
+  const p=s.pct;
+  const lowP=p[0]+p[1],midP=p[3],hiP=p[5]+p[6],speechP=p[2]+p[3];
+  const out=[];
+  const push=(nm,conf,basis)=>{if(conf>0)out.push({nm:nm,conf:conf,basis:basis});};
+  // 风：低频主导 + 起伏大（阵风）
+  if(lowP>55&&s.fluct>10)push('风 / 气流',3,'低频(<250Hz)占 '+lowP.toFixed(0)+'% 且 L10-L90 起伏 '+s.fluct.toFixed(1)+' dB（阵性）');
+  else if(lowP>45&&s.fluct>6)push('风 / 气流',2,'低频占 '+lowP.toFixed(0)+'%，起伏 '+s.fluct.toFixed(1)+' dB');
+  // 水：雨、流水、喷泉 → 高频宽带且平稳
+  if(hiP>35&&s.fluct<8)push('水声（雨 / 流水 / 喷泉）',3,'高频(>4kHz)占 '+hiP.toFixed(0)+'% 且起伏小（'+s.fluct.toFixed(1)+' dB，稳态宽带）');
+  else if(hiP>25&&s.fluct<10)push('水声（雨 / 流水）',2,'高频占 '+hiP.toFixed(0)+'%');
+  // 设备：低频稳态嗡鸣（风机 / 空调 / 变压器 / 电机）
+  if(lowP>40&&s.fluct<6)push('设备低频嗡鸣（风机 / 空调 / 电机）',3,'低频占 '+lowP.toFixed(0)+'% 且起伏仅 '+s.fluct.toFixed(1)+' dB（稳态）');
+  else if(lowP>30&&s.fluct<8)push('设备低频噪声',2,'低频占 '+lowP.toFixed(0)+'%');
+  // 人声活动
+  if(speechP>45&&s.fluct>8)push('人声活动（交谈 / 人群）',2,'250Hz-2kHz 占 '+speechP.toFixed(0)+'% 且有音节调制（起伏 '+s.fluct.toFixed(1)+' dB）');
+  // 交通：低频持续 + 中等起伏 + 间歇峰值
+  if(lowP>35&&s.fluct>=8&&s.fluct<=20&&speechP<45)push('交通 / 车辆通行',1,'低频 '+lowP.toFixed(0)+'% + 中等起伏 '+s.fluct.toFixed(1)+' dB（间歇通过）');
+  if(!out.length){
+    if(s.lmax-s.lmin<6)push('稳态背景噪声（来源不明，频谱较平坦）',1,'起伏仅 '+(s.lmax-s.lmin).toFixed(1)+' dB 且无主导频段');
+    else push('间歇性噪声（来源待现场确认）',1,'起伏 '+(s.lmax-s.lmin).toFixed(1)+' dB，无明确频段特征');
+  }
+  return out.sort((a,b)=>b.conf-a.conf);
+}
+function envAdvice(s,srcs){
+  const L=[],p=s.pct;
+  const lowP=p[0]+p[1],hiP=p[5]+p[6];
+  // 阈值取 40 而非 45：低频占比 40% 已属显著主导（实测边界场景 45% 恰好等于阈值会被漏掉）
+  if(lowP>40)L.push('【低频为主】低频绕射强、吸声材料难奏效 → 优先做**隔声与减振**：设备加减震垫/弹性支撑，管道包扎，门窗改隔声门或双层玻璃，并检查结构传声。');
+  if(hiP>30)L.push('【高频为主】高频易被吸收 → 优先做**吸声与密封**：顶面/墙面布吸声材料，封堵门窗缝隙，窗帘地毯等软饰面。');
+  if(s.fluct>12)L.push('【起伏大】噪声呈间歇/阵性（L10-L90 = '+s.fluct.toFixed(1)+' dB）→ 先定位**发生时段的声源**再做治理，别按稳态噪声设计。');
+  if(s.leq>65)L.push('【声级偏高】等效声级 '+s.leq.toFixed(1)+' dB → 现场人员应佩戴听力防护，并设置作业时限。');
+  if(srcs.some(x=>x.nm.indexOf('风')>=0))L.push('【风噪】若用于户外录音/测量，务必加防风毛衣或低频切除（HPF 80～120Hz）；纯软件降噪对风噪效果有限。');
+  if(srcs.some(x=>x.nm.indexOf('水')>=0))L.push('【水声】属宽带稳态，掩盖效应明显：对语言清晰度影响大，会议/教学场景需提高信噪比而非单纯降总声级。');
+  if(srcs.some(x=>x.nm.indexOf('设备')>=0))L.push('【设备嗡鸣】先确认是否为 50Hz 电源工频及其谐波（100/150Hz）→ 多为电磁或机械共振，属减振与设备维护范畴。');
+  if(!L.length)L.push('当前声环境无明显主导问题频段，保持现状即可；建议按季度复测留存趋势。');
+  return L;
+}
+function envReportText(){
+  const s=envStats();if(!s)return null;
+  const c=envComfort(s.leq),srcs=envSources(s),adv=envAdvice(s,srcs);
+  const place=envPlaceVal(),now=new Date();
+  const L=[];
+  L.push('AlphaSun 环境音频评估报告');
+  L.push('='.repeat(52));
+  L.push('采集地点：'+place);
+  L.push('报告时间：'+now.toLocaleString());
+  L.push('采集时长：'+s.dur.toFixed(1)+' 秒（'+(s.dur/60).toFixed(1)+' 分钟）');
+  L.push('采样率：'+s.sr+' Hz　有效频谱样本：'+s.n+' 帧');
+  L.push('');
+  L.push('一、声级统计（dB(A)，等效 A 计权）');
+  L.push('-'.repeat(52));
+  L.push('  Leq  等效连续声级 : '+s.leq.toFixed(1)+' dB(A)');
+  L.push('  L10  峰值背景     : '+s.l10.toFixed(1)+' dB(A)（10% 时间超过）');
+  L.push('  L50  中值         : '+s.l50.toFixed(1)+' dB(A)');
+  L.push('  L90  本底噪声     : '+s.l90.toFixed(1)+' dB(A)');
+  L.push('  Lmax / Lmin       : '+s.lmax.toFixed(1)+' / '+s.lmin.toFixed(1)+' dB(A)');
+  L.push('  L10-L90 起伏度    : '+s.fluct.toFixed(1)+' dB（越大越呈间歇/阵性）');
+  L.push('  校准偏置          : '+(s.cal?(s.cal>0?'+':'')+s.cal+' dB（用户填写）':'0 dB（未校准）'));
+  L.push('');
+  L.push('二、频段能量构成');
+  L.push('-'.repeat(52));
+  for(let b=0;b<7;b++){
+    const v=s.pct[b];const bar='█'.repeat(Math.max(0,Math.round(v/4)));
+    L.push('  '+ENV_BAND_NM[b].padEnd(18)+(' '+v.toFixed(1)+'%').padStart(8)+'  '+bar);
+  }
+  let di=0;for(let b=1;b<7;b++)if(s.pct[b]>s.pct[di])di=b;
+  L.push('  主导频段：'+ENV_BAND_NM[di]+'（'+s.pct[di].toFixed(1)+'%）');
+  L.push('');
+  L.push('三、对人的舒适度评级');
+  L.push('-'.repeat(52));
+  L.push('  等级：'+c.lv);
+  L.push('  依据：'+c.desc+'（参照 GB 3096-2008《声环境质量标准》昼间限值刻度）');
+  L.push('  适宜：'+c.fit);
+  L.push('  不宜：'+c.unfit);
+  L.push('');
+  L.push('四、声源构成推断（多维度）');
+  L.push('-'.repeat(52));
+  for(const x of srcs)L.push('  ['+'●'.repeat(x.conf)+'○'.repeat(3-x.conf)+'] '+x.nm+'　— '+x.basis);
+  L.push('  天气相关：'+(srcs.some(x=>x.nm.indexOf('风')>=0)?'检测到风 / 气流成分，户外作业与录音需防风。':
+    (srcs.some(x=>x.nm.indexOf('水')>=0)?'检测到水声成分（雨 / 流水），注意其对语言清晰度的掩盖效应。':'未检出明显的风雨类天气声成分。')));
+  L.push('');
+  L.push('五、治理与降噪建议');
+  L.push('-'.repeat(52));
+  adv.forEach((x,i)=>L.push('  '+(i+1)+'. '+x));
+  L.push('');
+  L.push('六、重要声明');
+  L.push('-'.repeat(52));
+  L.push('  1. 本报告声级为**相对满量程的数字电平 + 用户校准偏置**，未经声级计校准；');
+  L.push('     可用于同一设备的相对比较与趋势跟踪，**不可作为合规判定或法定测量依据**。');
+  L.push('  2. 声源推断基于频段构成与起伏度的启发式规则，非机器学习分类，属现场排查参考。');
+  L.push('  3. 需 GB 3096 合规结论时，请用经检定/校准的积分声级计按标准方法测量。');
+  L.push('  4. 原始录音文件已按「地点 + 时间」命名保存，可用于复听核对与环境降噪前后对比。');
+  return L.join('\n');
+}
+function envShowReport(){
+  const t=envReportText();
+  if(!t){toast('暂无足够采样，请先采集一段时间');return null;}
+  const o=$('envReportOut');if(o){o.textContent=t;o.style.display='block';}
+  return t;
+}
 function envStopAll(reason){
   if(envTimer){clearTimeout(envTimer);envTimer=null;}
   if(envWatch){clearInterval(envWatch);envWatch=null;}
+  if(envSpecTmr){clearInterval(envSpecTmr);envSpecTmr=null;}
   if(envOn){envOn=false;envFlushSegment();}
   envListening=false;
   try{if(envNode){envNode.port.onmessage=null;envNode.disconnect();}}catch(_){}
   try{if(envMute)envMute.disconnect();}catch(_){}
+  try{if(envAn)envAn.disconnect();}catch(_){}
   try{if(envStream)envStream.getTracks().forEach(t=>t.stop());}catch(_){}
   try{if(envCtx&&envCtx.state!=='closed')envCtx.close().catch(()=>{});}catch(_){}
-  envNode=null;envMute=null;envStream=null;envCtx=null;envLastDb=-1e9;
+  envNode=null;envMute=null;envAn=null;envStream=null;envCtx=null;envLastDb=-1e9;
+  envWaveStop();envWaveDraw();
   $('envStart').disabled=false;$('envStop').disabled=true;
   envLogAdd('停止：'+(reason||'手动'),'w');
+  if(ENV_ST.n>0){
+    envLogAdd('统计完成：'+ENV_ST.n+' 帧样本，可直接生成评估报告','g');
+    const cb=$('envAutoRep');if(cb&&cb.checked)envShowReport();
+  }
 }
 async function envBegin(){
   try{$('envStart').disabled=true;$('envStop').disabled=false;
     const ok=await envStartCapture();if(!ok){$('envStart').disabled=false;$('envStop').disabled=true;return;}
+    envWaveStart();
     const mode=$('envMode').querySelector('.on').dataset.m;
     if(mode==='level'){envListening=true;envOn=false;envHeld=0;envWatch=setInterval(envLevelWatch,200);
       envLogAdd('监听中（声级触发：'+$('envThr').value+' dB '+($('envDir').value)+' 持续 '+$('envHold').value+'s 自动开录）');}
     else{envOn=true;envPcm=[];envTot=0;envPeak=-1e9;envSegT=performance.now();
-      envLogAdd('开始采集（'+(mode==='timer'?'定时':'手动')+'）');
+      envLogAdd('开始采集（'+(mode==='timer'?'定时':'手动')+'）· 地点：'+envPlaceVal());
       if(mode==='timer'){const min=Math.max(1,parseFloat($('envDur').value)||30);
         envTimer=setTimeout(()=>envStopAll('定时到点'),min*60*1000);envLogAdd('定时 '+min+' 分钟自动停止');}}
   }catch(e){envStopAll('启动失败：'+((e&&e.message)||e));}
@@ -4349,9 +4597,21 @@ $('envMode').querySelectorAll('button').forEach(b=>b.addEventListener('click',()
   $('envLevelRow').style.display=(m==='level')?'flex':'none';}));
 $('envStart').addEventListener('click',envBegin);
 $('envStop').addEventListener('click',()=>envStopAll('手动'));
+$('envPlace').addEventListener('change',()=>{try{localStorage.setItem(ENV_PLACE_KEY,$('envPlace').value||'');}catch(_){}});
+$('envSaveBtn').addEventListener('click',()=>{
+  if(!envPcm.length){toast('暂无录音内容，请先开始采集');return;}
+  const sr=(envCtx&&envCtx.sampleRate)||ENV_ST.sr||48000;
+  let tot=0;for(const p of envPcm)tot+=p.length;const pcm=new Float32Array(tot);let o=0;for(const p of envPcm){pcm.set(p,o);o+=p.length;}
+  envSaveBlob(l2WavF(pcm,sr),envFileName(null),true);});
+$('envReportBtn').addEventListener('click',()=>{
+  const t=envShowReport();if(t)toast('已生成评估报告');});
+$('envExpRep').addEventListener('click',()=>{
+  const t=envReportText();if(!t){toast('暂无足够采样，请先采集');return;}
+  l2Dl(new Blob([t],{type:'text/plain'}),'环境评估_'+envSafeName(envPlaceVal())+'_'+envStamp()+'.txt');toast('已导出评估报告');});
 $('envExpLog').addEventListener('click',()=>{const L=$('envLog');if(!L||!L.children.length){toast('暂无采集日志');return;}
   let t='AlphaSun 环境音频采集日志\n生成时间 '+new Date().toLocaleString()+'\n\n';for(const c of L.children)t+=c.textContent+'\n';
   l2Dl(new Blob([t],{type:'text/plain'}),'env_log_'+toolTs()+'.txt');});
+try{const pv=localStorage.getItem(ENV_PLACE_KEY);if(pv)$('envPlace').value=pv;}catch(_){}
 
 // ---- ② 声波警戒值守 ----
 let alCtx=null,alStream=null,alAn=null,alSrc=null,alOn=false,alWatch=null,alHeld=0,alPeak=-1e9;
@@ -4869,8 +5129,7 @@ resize();frame();
 <!-- v2.0.0 平台专属运行层：桌面自检层（仅 Electron 激活）+ 移动生命周期桥（仅 Capacitor 激活），网页版自动惰性跳过 -->
 <script src="desktop/boot.js"></script>
 <script src="mobile/bridge.js"></script>
-  <!-- v2.13.x 音频工具集①：环境音频采集 -->
-  <!-- v2.14.0 音频工具集弹出菜单：必须作为 body 直属子元素。
+<!-- v2.14.0 音频工具集弹出菜单：必须作为 body 直属子元素。
        .app 是 position:relative;z-index:1 且带 zoom → 形成层叠上下文，并使内部 position:fixed
        改为相对 .app 定位，菜单 z-index 只在该上下文内比较 → 被主画布遮挡。
        移出 .app 后：fixed 相对视口居中，z-index 在根层比较，不被遮挡。 -->
@@ -4881,10 +5140,15 @@ resize();frame();
     <button data-tool="声波警戒值守"><span class="nm">声波警戒值守</span><span class="ds">阈值触发声光警报 · 值守日志</span></button>
     <button data-diag="1"><span class="nm">🩺 导出运行日志</span><span class="ds">错误 / 警告 / 版本 / 平台 · 排障用</span></button>
   </div>
+    <!-- v2.16.0 音频工具集①：环境音频采集（波形 + 地点时间命名 + 环境评估报告） -->
   <div class="toolmask" id="envMask">
     <div class="toolcard">
       <div class="toolhead"><span class="toolttl">🌿 环境音频采集</span><button class="toolx" id="envClose">✕</button></div>
       <div class="toolbody">
+        <div class="toolrow"><label>采集地点</label>
+          <input id="envPlace" type="text" placeholder="如：北海某机房 / 3 号风机平台" style="flex:1;min-width:180px">
+          <label>校准偏置 dB</label><input id="envCalib" type="number" step="1" value="0" style="width:64px">
+          <span class="hint">有声级计时填差值</span></div>
         <div class="toolrow"><label>触发模式</label>
           <div class="seg" id="envMode">
             <button data-m="manual" class="on">手动</button>
@@ -4901,12 +5165,22 @@ resize();frame();
           <label>持续(秒)</label><input id="envHold" type="number" min="1" max="600" value="5"></div>
         <div class="toolrow"><label class="sw"><input id="envSegOn" type="checkbox" checked> 自动分段</label>
           <span class="hint">每</span><input id="envSeg" type="number" min="1" max="240" value="10" style="width:54px">
-          <span class="hint">分钟切一个文件</span></div>
+          <span class="hint">分钟切一个文件</span>
+          <label class="sw"><input id="envAutoRep" type="checkbox" checked> 停止后自动出报告</label></div>
+        <div class="asrwavebox">
+          <canvas id="envWave" class="asrwave" style="height:64px"></canvas>
+          <div class="asrwavemeta"><span id="envClock">00:00</span><span id="envLvl">静音</span></div>
+        </div>
         <div class="toolrow"><button class="cap2" id="envStart">▶ 开始采集</button>
           <button class="cap2" id="envStop" disabled>■ 停止</button>
+          <button class="cap2" id="envSaveBtn">保存原始录音</button>
           <span id="envStat" class="hint">待命</span></div>
+        <div class="toolrow"><button class="cap2" id="envReportBtn">📊 生成评估报告</button>
+          <button class="cap2" id="envExpRep">导出评估报告</button></div>
+        <div class="envrep" id="envReportOut" style="display:none"></div>
         <div class="toollog" id="envLog"></div>
-        <div class="toolrow"><button class="cap2" id="envExpLog">导出采集日志</button></div>
+        <div class="toolrow"><button class="cap2" id="envExpLog">导出采集日志</button>
+          <span class="hint">录音按「地点+时间」命名；报告含声级统计 / 频段 / 舒适度 / 声源推断</span></div>
       </div>
     </div>
   </div>
