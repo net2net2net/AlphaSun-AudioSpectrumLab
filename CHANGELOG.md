@@ -25,8 +25,15 @@
 
 ### 交付（MD5）
 - `AlphaSun-AudioLab-2.13.0.apk`（3.4MB，versionCode 25 / versionName 2.13.0 经 aapt2 校验）`209722d3059a52c34cd9828429b64659`
-- `AlphaSun-AudioLab-2.13.0-portable.exe`（66.6MB，启动冒烟正常，版本资源为 2.13.0）`9ba82c995dca94a6cc65b6ad5b77a01a`
-- `AlphaSun-AudioLab-2.13.0-linux-x64.tar.gz`（94.5MB）`079113df2e01f9d31339774674ae9a75`
+- `AlphaSun-AudioLab-2.13.0-portable.exe`（66.6MB，已重编去菜单，版本资源 2.13.0）`7e5e6db83a7440ce604cd3a52fcf3ab3`
+- `AlphaSun-AudioLab-2.13.0-linux-x64.tar.gz`（94.5MB）`5bef8a19ea2bc99960a7da61ae418c28`
+
+### 修订（2026-10-02 · 菜单热修）
+- **移除 Electron 默认应用菜单栏（"File / Edit / View / Window / Help"）**：`main.js` 主进程 `app.whenReady` 后调用
+  `Menu.setApplicationMenu(null)`。当前软件功能无需该菜单，移除后客户区直接顶到窗口标题，分析可视面积更大；
+  Windows/Linux 完全隐藏菜单栏，macOS 受系统规范仅保留最小应用菜单。改动仅影响 Electron 桌面端，
+  Android/iOS/PWA/HTML 本就无此菜单，故**不升版本号**（升版本会迫使未重编的 APK 出现版本漂移）。
+  Win 便携版与 Linux 版已重编并覆盖 v2.13.0 Release 资产（MD5 见上，已更新为去菜单版本）。
 
 ## v2.12.0（2026-10-02）
 - **自研 FLAC 编码器**（`l2EncFlacJS`）：WebCodecs 在 Electron/Edge 均不支持 flac → 不删格式，改为自研
