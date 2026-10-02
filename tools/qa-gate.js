@@ -212,6 +212,38 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
       JSON.stringify(cloud.result).slice(0, 180));
   }
 
+  console.log('\n[8] 环境音频采集面板（v2.16.0：波形 / 地点命名 / 评估报告）');
+  await page.evaluate(() => { const m = document.getElementById('toolsMenu'); if (m) m.classList.remove('on'); });
+  await page.click('#toolsBtn');
+  await page.waitForTimeout(200);
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('#toolsMenu button[data-tool]')).find(x => x.dataset.tool === '环境音频采集');
+    if (b) b.click();
+  });
+  await page.waitForTimeout(400);
+  const env = await page.evaluate(() => {
+    const cv = document.getElementById('envWave');
+    const r = cv ? cv.getBoundingClientRect() : null;
+    return {
+      hasPlace: !!document.getElementById('envPlace'),
+      hasCalib: !!document.getElementById('envCalib'),
+      waveOk: !!(cv && r && r.width > 0 && r.height > 0),
+      hasSave: !!document.getElementById('envSaveBtn'),
+      hasReport: !!document.getElementById('envReportBtn'),
+      hasExpRep: !!document.getElementById('envExpRep'),
+      hasAutoRep: !!document.getElementById('envAutoRep'),
+      hasLog: !!document.getElementById('envLog'),
+    };
+  });
+  chk('地点输入框存在（用于文件命名）', env.hasPlace, 'envPlace=' + env.hasPlace);
+  chk('校准偏置输入存在（未校准声明配套）', env.hasCalib, 'envCalib=' + env.hasCalib);
+  chk('采集波形画布已渲染出尺寸', env.waveOk, 'canvas 有尺寸=' + env.waveOk);
+  chk('保存原始录音入口存在', env.hasSave, 'envSaveBtn=' + env.hasSave);
+  chk('生成/导出评估报告入口存在', env.hasReport && env.hasExpRep,
+    'reportBtn=' + env.hasReport + ' expRep=' + env.hasExpRep);
+  chk('停止后自动出报告开关存在', env.hasAutoRep, 'envAutoRep=' + env.hasAutoRep);
+  await page.evaluate(() => { const el = document.getElementById('envMask'); if (el) el.classList.remove('on'); });
+
   await app.close();
 
   const pass = results.filter(r => r.ok).length, fail = results.length - pass;
