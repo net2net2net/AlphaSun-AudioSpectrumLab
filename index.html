@@ -122,6 +122,69 @@
   .asrwave{display:block;width:100%;height:72px}
   .asrwavemeta{position:absolute;right:8px;top:6px;display:flex;gap:10px;font-size:11px;color:#9fd7ff;
     background:rgba(4,10,20,.55);border-radius:6px;padding:1px 6px}
+  /* ---- v2.17.0 声波警戒值守台（全屏）---- */
+  .guard{position:fixed;inset:0;z-index:200;background:radial-gradient(1200px 700px at 50% 0%,#071426 0%,#04070f 60%,#02040a 100%);
+    display:flex;flex-direction:column;color:#dff1ff;font-family:var(--mono,Consolas,monospace)}
+  .gTop{display:flex;align-items:center;gap:18px;padding:12px 18px;border-bottom:1px solid rgba(90,170,255,.18);
+    background:linear-gradient(180deg,rgba(20,50,90,.35),rgba(4,8,16,0))}
+  .gClock{display:flex;flex-direction:column;line-height:1.15}
+  .gClock .gT{font-size:30px;font-weight:700;letter-spacing:1px;color:#eaf6ff;text-shadow:0 0 14px rgba(80,190,255,.35)}
+  .gClock .gD{font-size:11px;color:#79a6c8}
+  .gDbBox{display:flex;align-items:baseline;gap:6px;margin-left:6px}
+  .gDbBox .gDb{font-size:44px;font-weight:800;color:#7fe3ff;text-shadow:0 0 18px rgba(60,200,255,.45)}
+  .gDbBox .gUnit{font-size:16px;color:#79a6c8}
+  .gDbBox .gLbl{font-size:12px;color:#9fd7ff;margin-left:8px;border:1px solid rgba(90,180,255,.35);border-radius:6px;padding:1px 7px}
+  .gStateBox{display:flex;flex-direction:column;gap:2px;margin-left:auto;align-items:flex-end}
+  .gState{font-size:16px;font-weight:700;padding:2px 12px;border-radius:8px;border:1px solid rgba(120,180,255,.35)}
+  .gState.normal{color:#8fd6ff;background:rgba(20,90,160,.25);border-color:rgba(90,190,255,.5)}
+  .gState.warn{color:#ffd76a;background:rgba(120,90,10,.3);border-color:rgba(255,200,80,.55)}
+  .gState.alarm{color:#ff8d9b;background:rgba(140,20,40,.35);border-color:rgba(255,90,110,.6);animation:gPulse .6s infinite}
+  .gDur{font-size:12px;color:#79a6c8}
+  @keyframes gPulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .gExit{background:rgba(255,255,255,.06);border:1px solid rgba(120,180,255,.35);color:#cfe8ff;
+    border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+  .gExit:hover{background:rgba(90,180,255,.18)}
+  .gMain{flex:1;display:flex;gap:16px;padding:14px 18px;min-height:0}
+  .gCenter{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-width:0}
+  .gWave{position:absolute;inset:0;width:100%;height:100%;border-radius:12px;background:rgba(0,0,0,.28);
+    border:1px solid rgba(90,170,255,.16)}
+  .gRing{position:relative;width:min(38vh,300px);height:min(38vh,300px);border-radius:50%;
+    background:radial-gradient(circle at 50% 50%,rgba(6,16,30,.92),rgba(4,10,20,.6));
+    box-shadow:0 0 40px rgba(40,140,220,.18) inset,0 0 24px rgba(40,140,220,.12)}
+  .gSide{width:190px;display:flex;flex-direction:column;gap:10px;justify-content:center}
+  .gLamp{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;
+    border:1px solid rgba(120,160,200,.18);background:rgba(255,255,255,.03);opacity:.42;transition:.15s}
+  .gLamp i{width:16px;height:16px;border-radius:50%;background:#2a3a4a;flex:none;box-shadow:none}
+  .gLamp span{font-size:13px;font-weight:700}
+  .gLamp b{margin-left:auto;font-size:11px;color:#79a6c8;font-weight:400}
+  .gLamp[data-lv="alarm"].on{opacity:1;border-color:rgba(255,90,110,.7);background:rgba(150,20,40,.28)}
+  .gLamp[data-lv="alarm"].on i{background:#ff4d63;box-shadow:0 0 16px #ff4d63,0 0 34px rgba(255,77,99,.6)}
+  .gLamp[data-lv="warn"].on{opacity:1;border-color:rgba(255,200,80,.65);background:rgba(120,90,10,.24)}
+  .gLamp[data-lv="warn"].on i{background:#ffc94d;box-shadow:0 0 14px #ffc94d,0 0 30px rgba(255,201,77,.5)}
+  .gLamp[data-lv="normal"].on{opacity:1;border-color:rgba(90,190,255,.65);background:rgba(20,90,160,.24)}
+  .gLamp[data-lv="normal"].on i{background:#4db6ff;box-shadow:0 0 14px #4db6ff,0 0 30px rgba(77,182,255,.5)}
+  .gInfo{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#79a6c8;
+    border:1px solid rgba(120,160,200,.18);border-radius:10px;padding:8px 10px;background:rgba(255,255,255,.03)}
+  .gInfo b{float:right;color:#bfe6ff}
+  .gBottom{border-top:1px solid rgba(90,170,255,.18);padding:8px 18px 12px;display:flex;flex-direction:column;min-height:150px}
+  .gEvHead{display:flex;align-items:center;gap:10px;font-size:13px;color:#9fd7ff;margin-bottom:6px}
+  .gEvList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:26vh}
+  .gEv{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:9px;font-size:12px;
+    background:rgba(255,255,255,.04);border-left:3px solid #4db6ff}
+  .gEv.warn{border-left-color:#ffc94d}
+  .gEv.alarm{border-left-color:#ff4d63;background:rgba(150,20,40,.18)}
+  .gEv .t{color:#cfe8ff;font-weight:700}
+  .gEv .lv{padding:1px 7px;border-radius:6px;font-size:11px}
+  .gEv.alarm .lv{background:rgba(255,77,99,.25);color:#ff8d9b}
+  .gEv.warn .lv{background:rgba(255,201,77,.22);color:#ffd76a}
+  .gEv.normal .lv{background:rgba(77,182,255,.2);color:#8fd6ff}
+  .gEv .an{color:#79a6c8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gEv button{background:rgba(255,255,255,.06);border:1px solid rgba(120,180,255,.3);color:#cfe8ff;
+    border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit}
+  .gEv button:hover{background:rgba(90,180,255,.18)}
+  .gEv audio{height:28px;max-width:230px}
+  .gEv .thumb{width:44px;height:30px;object-fit:cover;border-radius:4px;border:1px solid rgba(120,180,255,.3);cursor:pointer}
+  .gEmpty{color:#5d7f9a;font-size:12px;padding:10px}
   .envrep{max-height:260px;overflow:auto;background:rgba(0,0,0,.30);border:1px solid var(--brd);border-radius:10px;
     padding:10px 12px;font-size:12px;line-height:1.65;color:#d8f5e6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;margin:6px 0}
   @keyframes alFlash{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,93,115,0)}50%{box-shadow:inset 0 0 0 6px rgba(255,93,115,.65)}}
@@ -608,7 +671,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.16.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.17.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1651,7 +1714,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.16.0',APP_BUILD='20261002';
+const APP_VER='2.17.0',APP_BUILD='20261002';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';}catch(e){}
 // ---- 系统监视（需求#4：顶栏 CPU/内存。桌面版经 preload 桥取真实系统值；网页/移动端无权限显示 —） ----
 function sysTick(){
@@ -4614,24 +4677,347 @@ $('envExpLog').addEventListener('click',()=>{const L=$('envLog');if(!L||!L.child
 try{const pv=localStorage.getItem(ENV_PLACE_KEY);if(pv)$('envPlace').value=pv;}catch(_){}
 
 // ---- ② 声波警戒值守 ----
-let alCtx=null,alStream=null,alAn=null,alSrc=null,alOn=false,alWatch=null,alHeld=0,alPeak=-1e9;
-function alDbNow(){if(!alAn)return -1e9;const td=new Float32Array(alAn.fftSize);alAn.getFloatTimeDomainData(td);
+/* ---------- v2.17.0 声波警戒值守台 ----------
+   状态机：idle → eval（本底评估）→ normal(蓝) → warn(黄) → alarm(红) → 回落 normal
+   事件：进入 warn/alarm 开启，回落 normal 持续 release 秒或超最长时长后结束，
+        记录起止时间 / 音频分析 / 录音（可回放）/ 告警图像与视频。            */
+const GUARD={
+  state:'idle',floor:-60,thrWarn:-30,thrAlarm:-25,manual:false,
+  t0:null,evalBuf:[],evalT0:null,evalSec:5,
+  ev:null,evs:[],pcm:[],pcmLen:0,
+  wave:new Float32Array(600),wpos:0,raf:null,
+  camStream:null,camRec:null,camChunks:[],camBusy:false,
+  relHeld:0,lastDb:-1e9,seq:0,
+};
+const GUARD_LV={normal:{t:'正常',cls:'normal'},warn:{t:'预警',cls:'warn'},alarm:{t:'告警',cls:'alarm'}};
+function alLog(m,c){toolLog('alertLog',m,c);}
+function alNowDb(){if(!alAn)return -1e9;const td=new Float32Array(alAn.fftSize);alAn.getFloatTimeDomainData(td);
   let s=0;for(let i=0;i<td.length;i++)s+=td[i]*td[i];return 20*Math.log10(Math.max(Math.sqrt(s/td.length),1e-5));}
 function alBeep(){try{if(!alCtx)return;const o=alCtx.createOscillator(),g=alCtx.createGain();
   o.type='square';o.frequency.value=880;o.connect(g);g.connect(alCtx.destination);
   const t=alCtx.currentTime;g.gain.setValueAtTime(0.18,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.35);
   o.start(t);o.stop(t+0.36);}catch(_){}}
-function alTick(){
-  const db=alDbNow();if(db<=-1e8)return;$('alertNow').textContent='当前 '+db.toFixed(1)+' dB';
-  if(db>alPeak)alPeak=db;
-  const thr=parseFloat($('alertThr').value)||-30,dir=$('alertDir').value,hold=Math.max(0,parseFloat($('alertHold').value)||2);
-  const breach=(dir==='above')?db>=thr:db<=thr;
-  if(breach){alHeld+=0.15;if(alHeld>=hold){alHeld=0;
-    if($('alertFlash').checked)document.body.classList.add('alarm');
+/* ---------- 波形与环形仪表 ---------- */
+function alWaveFeed(d){
+  const PER=8,n=d.length;
+  for(let k=0;k<PER;k++){
+    const x=Math.floor(k*n/PER),y=Math.floor((k+1)*n/PER);
+    let mx=0;for(let i=x;i<y;i++){const v=d[i];if(v>mx)mx=v;if(-v>mx)mx=-v;}
+    GUARD.wave[GUARD.wpos]=mx;GUARD.wpos=(GUARD.wpos+1)%GUARD.wave.length;
+  }
+}
+function alDrawWave(){
+  const cv=$('gWave');if(!cv)return;
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth||900,h=cv.clientHeight||220;
+  if(cv.width!==Math.round(w*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);
+  const mid=h/2;
+  g.strokeStyle='rgba(90,170,255,.18)';g.beginPath();g.moveTo(0,mid);g.lineTo(w,mid);g.stroke();
+  const N=GUARD.wave.length,bw=w/N;
+  const col=GUARD.state==='alarm'?'#ff6b7d':(GUARD.state==='warn'?'#ffc94d':'#4db6ff');
+  g.fillStyle=col;g.shadowColor=col;g.shadowBlur=8;
+  for(let i=0;i<N;i++){
+    const v=Math.max(-1,Math.min(1,GUARD.wave[i]));
+    const bh=Math.max(1,Math.abs(v)*(h/2-6));
+    g.fillRect(i*bw,mid-bh/2,Math.max(1,bw-0.6),bh);
+  }
+  g.shadowBlur=0;
+}
+function alDrawRing(){
+  const cv=$('gRing');if(!cv)return;
+  const dpr=window.devicePixelRatio||1;const size=cv.clientWidth||280;
+  if(cv.width!==Math.round(size*dpr)){cv.width=Math.round(size*dpr);cv.height=Math.round(size*dpr);}
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  const cx=size/2,cy=size/2,R=size/2-10;
+  g.clearRect(0,0,size,size);
+  // 底环
+  g.lineWidth=9;g.strokeStyle='rgba(90,150,200,.18)';
+  g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.stroke();
+  // 刻度（-60 → 0 dB 映射到 240°）
+  const A0=Math.PI*0.75,A1=Math.PI*2.25;
+  g.strokeStyle='rgba(120,180,230,.35)';g.lineWidth=2;
+  for(let db=-60;db<=0;db+=10){
+    const t=(db+60)/60,ang=A0+(A1-A0)*t;
+    const x1=cx+Math.cos(ang)*(R-14),y1=cy+Math.sin(ang)*(R-14);
+    const x2=cx+Math.cos(ang)*(R-7),y2=cy+Math.sin(ang)*(R-7);
+    g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();
+  }
+  // 阈值标记
+  const mark=(db,color)=>{
+    const t=Math.max(0,Math.min(1,(db+60)/60)),ang=A0+(A1-A0)*t;
+    g.strokeStyle=color;g.lineWidth=3;
+    g.beginPath();g.moveTo(cx+Math.cos(ang)*(R-18),cy+Math.sin(ang)*(R-18));
+    g.lineTo(cx+Math.cos(ang)*(R+4),cy+Math.sin(ang)*(R+4));g.stroke();
+  };
+  mark(GUARD.thrWarn,'#ffc94d');mark(GUARD.thrAlarm,'#ff4d63');
+  // 当前值弧
+  const cur=GUARD.lastDb<=-1e8?-60:Math.max(-60,Math.min(0,GUARD.lastDb));
+  const t=(cur+60)/60,ang=A0+(A1-A0)*t;
+  const col=GUARD.state==='alarm'?'#ff4d63':(GUARD.state==='warn'?'#ffc94d':'#4db6ff');
+  g.strokeStyle=col;g.lineWidth=9;g.lineCap='round';g.shadowColor=col;g.shadowBlur=16;
+  g.beginPath();g.arc(cx,cy,R,A0,ang);g.stroke();g.shadowBlur=0;
+  // 指针
+  g.strokeStyle='#eaf6ff';g.lineWidth=2;
+  g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+Math.cos(ang)*(R-20),cy+Math.sin(ang)*(R-20));g.stroke();
+  // 中心读数
+  g.fillStyle='#eaf6ff';g.textAlign='center';
+  g.font='700 '+(size*0.17)+'px Consolas,monospace';
+  g.fillText(GUARD.lastDb<=-1e8?'--':GUARD.lastDb.toFixed(0),cx,cy+size*0.02);
+  g.font=(size*0.075)+'px Consolas,monospace';g.fillStyle='#79a6c8';
+  g.fillText('dB · 本底 '+GUARD.floor.toFixed(0),cx,cy+size*0.16);
+}
+function alPaintLoop(){alDrawWave();alDrawRing();alPaintTop();GUARD.raf=requestAnimationFrame(alPaintLoop);}
+function alPaintTop(){
+  const n=new Date(),p=x=>(''+(x|0)).padStart(2,'0');
+  const T=$('gTime');if(T)T.textContent=p(n.getHours())+':'+p(n.getMinutes())+':'+p(n.getSeconds());
+  const D=$('gDate');if(D)D.textContent=n.getFullYear()+'-'+p(n.getMonth()+1)+'-'+p(n.getDate())+' 周'+'日一二三四五六'[n.getDay()];
+  const db=$('gDb');if(db)db.textContent=GUARD.lastDb<=-1e8?'--':GUARD.lastDb.toFixed(1);
+  const dur=$('gDur');if(dur&&GUARD.t0){const el=((Date.now()-GUARD.t0)/1000)|0;
+    dur.textContent=p(el/3600)+':'+p((el%3600)/60)+':'+p(el%60);}
+  const st=$('gState');if(st){const L=GUARD_LV[GUARD.state]||GUARD_LV.normal;
+    st.textContent=GUARD.state==='eval'?'本底评估中':L.t;st.className='gState '+(GUARD.state==='eval'?'normal':L.cls);}
+  const lb=$('gDbLbl');if(lb)lb.textContent=GUARD.state==='eval'?('评估中 '+GUARD.evalBuf.length+' 帧')
+    :('本底 '+GUARD.floor.toFixed(0)+' · 预警 '+GUARD.thrWarn.toFixed(0)+' · 告警 '+GUARD.thrAlarm.toFixed(0));
+  const fl=$('gFloor');if(fl)fl.textContent=GUARD.floor.toFixed(1)+' dB';
+  const pk=$('gPeak');if(pk)pk.textContent=GUARD.lastDb<=-1e8?'—':Math.max(alPeak,GUARD.lastDb).toFixed(1)+' dB';
+  const en=$('gEvNum');if(en)en.textContent=GUARD.evs.length;
+  for(const lv of ['alarm','warn','normal']){
+    const el=$('gLamp'+lv.charAt(0).toUpperCase()+lv.slice(1));
+    if(el)el.classList.toggle('on',GUARD.state===lv);
+  }
+  const la=$('gLampAlarmTxt');if(la)la.textContent=GUARD.thrAlarm.toFixed(0)+' dB';
+  const lw=$('gLampWarnTxt');if(lw)lw.textContent=GUARD.thrWarn.toFixed(0)+' dB';
+  const ln=$('gLampNormalTxt');if(ln)ln.textContent='≤ '+GUARD.thrWarn.toFixed(0)+' dB';
+}
+/* ---------- 事件系统 ---------- */
+function alEvStart(lv,db){
+  GUARD.ev={id:++GUARD.seq,lv:lv,tStart:new Date(),peak:db,sum:0,cnt:0,over:0};
+  GUARD.pcm=[];GUARD.pcmLen=0;GUARD.relHeld=0;
+  alLog('事件 #'+GUARD.seq+' 开始（'+GUARD_LV[lv].t+'，'+db.toFixed(1)+' dB）',lv==='alarm'?'e':'w');
+  if(lv==='alarm'){if($('alertFlash').checked)document.body.classList.add('alarm');
     if($('alertBeep').checked)alBeep();
-    toolLog('alertLog','⚠️ 越限 '+db.toFixed(1)+' dB（'+dir+' 阈值 '+$('alertThr').value+'）峰值 '+alPeak.toFixed(1),'e');
-    if($('alertFlash').checked)setTimeout(()=>document.body.classList.remove('alarm'),1200);}}
-  else alHeld=0;
+    setTimeout(()=>document.body.classList.remove('alarm'),1200);
+    alCamTrigger();alNotify(lv,db);}
+}
+async function alEvFinish(){
+  const ev=GUARD.ev;if(!ev)return;
+  GUARD.ev=null;
+  ev.tEnd=new Date();ev.durMs=ev.tEnd-ev.tStart;
+  ev.avg=ev.cnt?ev.sum/ev.cnt:-1e9;
+  ev.overPct=ev.cnt?ev.over/ev.cnt*100:0;
+  const sr=(alCtx&&alCtx.sampleRate)||48000;
+  let wavBlob=null;
+  if(GUARD.pcm.length){
+    let tot=0;for(const p of GUARD.pcm)tot+=p.length;
+    const pcm=new Float32Array(tot);let o=0;for(const p of GUARD.pcm){pcm.set(p,o);o+=p.length;}
+    wavBlob=l2WavF(pcm,sr);
+    ev.audioUrl=URL.createObjectURL(wavBlob);
+    ev.durAudio=tot/sr;
+    ev.wavBlob=wavBlob;
+    // 桌面端落盘到 下载目录/AlphaSun警戒事件
+    if(window.guard&&window.guard.saveMedia){
+      try{const r=await window.guard.saveMedia({name:alEvName(ev,'audio')+'.wav',
+        b64:ab2b64(await wavBlob.arrayBuffer()),subdir:alEvDir(ev)});
+        if(r&&r.ok)ev.wavPath=r.path;}catch(e){diagAdd('warn','事件音频保存失败：'+((e&&e.message)||e));}
+    }
+  }
+  GUARD.pcm=[];GUARD.pcmLen=0;
+  GUARD.evs.unshift(ev);
+  alLog('事件 #'+ev.id+' 结束（'+GUARD_LV[ev.lv].t+'，时长 '+(ev.durMs/1000).toFixed(1)+'s，峰值 '+ev.peak.toFixed(1)+' dB，均值 '+ev.avg.toFixed(1)+' dB）',ev.lv==='alarm'?'e':'w');
+  alRenderEvents();
+}
+function alEvName(ev,kind){
+  const p=n=>(''+(n|0)).padStart(2,'0');const d=ev.tStart;
+  return '事件'+p(ev.id)+'_'+GUARD_LV[ev.lv].t+'_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+'_'+kind;
+}
+function alEvDir(ev){const p=n=>(''+(n|0)).padStart(2,'0');const d=ev.tStart;
+  return ''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate());}
+function alEvAnalysis(ev){
+  const L=[];
+  L.push('事件 #'+ev.id+'  级别：'+GUARD_LV[ev.lv].t);
+  L.push('开始：'+ev.tStart.toLocaleString());
+  L.push('结束：'+ev.tEnd.toLocaleString());
+  L.push('时长：'+(ev.durMs/1000).toFixed(1)+' 秒'+(ev.durAudio?('（音频 ' +ev.durAudio.toFixed(1)+' 秒）'):''));
+  L.push('峰值声级：'+ev.peak.toFixed(1)+' dB');
+  L.push('平均声级：'+ev.avg.toFixed(1)+' dB');
+  L.push('相对本底：+'+Math.max(0,ev.avg-GUARD.floor).toFixed(1)+' dB（本底 '+GUARD.floor.toFixed(1)+' dB）');
+  L.push('超阈时间占比：'+ev.overPct.toFixed(1)+'%');
+  L.push('阈值：预警 '+GUARD.thrWarn.toFixed(1)+' dB / 告警 '+GUARD.thrAlarm.toFixed(1)+' dB');
+  if(ev.shotName)L.push('告警图像：'+ev.shotName);
+  if(ev.videoName)L.push('告警视频：'+ev.videoName);
+  if(ev.wavPath)L.push('音频文件：'+ev.wavPath);
+  L.push('（声级为相对满量程数字电平，未经声级计校准，不作合规判定）');
+  return L.join('\n');
+}
+function alRenderEvents(){
+  const box=$('gEvList');if(!box)return;box.innerHTML='';
+  if(!GUARD.evs.length){const d=document.createElement('div');d.className='gEmpty';
+    d.textContent='暂无事件。值守中一旦声级越过预警/告警阈值并持续设定时间，事件会自动记录在这里。';box.appendChild(d);return;}
+  for(const ev of GUARD.evs){
+    const row=document.createElement('div');row.className='gEv '+ev.lv;
+    const p=n=>(''+(n|0)).padStart(2,'0');const d=ev.tStart;
+    const t=document.createElement('span');t.className='t';
+    t.textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+    const lv=document.createElement('span');lv.className='lv';lv.textContent=GUARD_LV[ev.lv].t;
+    const an=document.createElement('span');an.className='an';
+    an.textContent='时长 '+(ev.durMs/1000).toFixed(1)+'s · 峰值 '+ev.peak.toFixed(1)+'dB · 均值 '+ev.avg.toFixed(1)+'dB · 超阈 '+ev.overPct.toFixed(0)+'%';
+    row.appendChild(t);row.appendChild(lv);row.appendChild(an);
+    if(ev.audioUrl){const au=document.createElement('audio');au.controls=true;au.src=ev.audioUrl;row.appendChild(au);}
+    if(ev.shotUrl){const im=document.createElement('img');im.className='thumb';im.src=ev.shotUrl;
+      im.title='点击查看告警抓拍';im.onclick=()=>window.open(ev.shotUrl,'_blank');row.appendChild(im);}
+    if(ev.videoUrl){const vb=document.createElement('button');vb.textContent='▶ 视频';
+      vb.onclick=()=>window.open(ev.videoUrl,'_blank');row.appendChild(vb);}
+    const be=document.createElement('button');be.textContent='导出';
+    be.onclick=()=>{l2Dl(new Blob([alEvAnalysis(ev)],{type:'text/plain'}),alEvName(ev,'分析')+'.txt');
+      if(ev.wavBlob)l2Dl(ev.wavBlob,alEvName(ev,'audio')+'.wav');
+      if(ev.shotBlob)l2Dl(ev.shotBlob,alEvName(ev,'抓拍')+'.jpg');
+      if(ev.videoBlob)l2Dl(ev.videoBlob,alEvName(ev,'录像')+'.webm');
+      toast('已导出事件 #'+ev.id);};
+    row.appendChild(be);
+    box.appendChild(row);
+  }
+}
+/* ---------- 摄像头（告警时抓拍 / 录像）---------- */
+async function alCamTrigger(){
+  if(!($('alertCam')&&$('alertCam').checked))return;
+  if(GUARD.camBusy)return;GUARD.camBusy=true;
+  try{
+    const dev=($('alertCamDev')&&$('alertCamDev').value)||'';
+    const cons=dev?{video:{deviceId:{exact:dev}},audio:false}:{video:{width:1280,height:720},audio:false};
+    GUARD.camStream=await navigator.mediaDevices.getUserMedia(cons);
+    const v=document.createElement('video');v.srcObject=GUARD.camStream;v.muted=true;v.playsInline=true;
+    await new Promise(r=>{v.onloadedmetadata=r;setTimeout(r,1500);});
+    await v.play().catch(()=>{});
+    await new Promise(r=>setTimeout(r,300));
+    const ev=GUARD.ev;
+    if($('alertCamShot').checked){
+      const c=document.createElement('canvas');c.width=v.videoWidth||1280;c.height=v.videoHeight||720;
+      c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+      const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
+      if(blob&&ev){ev.shotBlob=blob;ev.shotUrl=URL.createObjectURL(blob);ev.shotName=alEvName(ev,'抓拍')+'.jpg';
+        if(window.guard&&window.guard.saveMedia){try{
+          const rr=await window.guard.saveMedia({name:ev.shotName,b64:ab2b64(await blob.arrayBuffer()),subdir:alEvDir(ev)});
+          if(rr&&rr.ok)ev.shotPath=rr.path;}catch(e){diagAdd('warn','抓拍保存失败：'+((e&&e.message)||e));}}
+        alLog('事件 #'+ev.id+' 已抓拍告警图像','g');}
+    }
+    if($('alertCamRec').checked){
+      const sec=Math.max(3,parseFloat(($('alertCamSec')||{}).value)||15);
+      try{
+        const rec=GUARD.camRec=new MediaRecorder(GUARD.camStream,{mimeType:'video/webm'});
+        GUARD.camChunks=[];
+        rec.ondataavailable=e=>{if(e.data&&e.data.size)GUARD.camChunks.push(e.data);};
+        const done=new Promise(res=>{rec.onstop=res;});
+        rec.start();
+        await new Promise(r=>setTimeout(r,sec*1000));
+        try{rec.stop();}catch(_){}
+        await done;
+        const vb=new Blob(GUARD.camChunks,{type:'video/webm'});
+        if(vb.size&&ev){ev.videoBlob=vb;ev.videoUrl=URL.createObjectURL(vb);ev.videoName=alEvName(ev,'录像')+'.webm';
+          if(window.guard&&window.guard.saveMedia){try{
+            const rr=await window.guard.saveMedia({name:ev.videoName,b64:ab2b64(await vb.arrayBuffer()),subdir:alEvDir(ev)});
+            if(rr&&rr.ok)ev.videoPath=rr.path;}catch(e){diagAdd('warn','录像保存失败：'+((e&&e.message)||e));}}
+          alLog('事件 #'+ev.id+' 已录制告警视频 '+sec+'s','g');}
+      }catch(e){diagAdd('warn','摄像头录像失败：'+((e&&e.message)||e));}
+    }
+    alRenderEvents();
+  }catch(e){
+    diagAdd('warn','摄像头启用失败：'+((e&&e.message)||e));
+    alLog('⚠️ 摄像头不可用：'+((e&&e.message)||e),'w');
+  }finally{
+    try{if(GUARD.camStream)GUARD.camStream.getTracks().forEach(t=>t.stop());}catch(_){}
+    GUARD.camStream=null;GUARD.camRec=null;GUARD.camBusy=false;
+  }
+}
+/* ---------- 告警推送 ---------- */
+const NT_KEY='alphasun.guard.notify';
+function alNtCfg(){try{return JSON.parse(localStorage.getItem(NT_KEY)||'{}');}catch(_){return {};}}
+function alNtSave(){const c={wecom:($('ntWecom')||{}).value||'',ding:($('ntDing')||{}).value||'',
+  feishu:($('ntFeishu')||{}).value||'',sc:($('ntSc')||{}).value||'',hook:($('ntHook')||{}).value||'',
+  akId:($('ntAkId')||{}).value||'',akSec:($('ntAkSec')||{}).value||'',sign:($('ntSign')||{}).value||'',
+  tpl:($('ntTpl')||{}).value||'',phone:($('ntPhone')||{}).value||''};
+  try{localStorage.setItem(NT_KEY,JSON.stringify(c));}catch(_){}return c;}
+function alNtFill(){const c=alNtCfg();
+  for(const [id,k] of [['ntWecom','wecom'],['ntDing','ding'],['ntFeishu','feishu'],['ntSc','sc'],['ntHook','hook'],
+    ['ntAkId','akId'],['ntAkSec','akSec'],['ntSign','sign'],['ntTpl','tpl'],['ntPhone','phone']]){
+    const el=$(id);if(el&&c[k]!=null)el.value=c[k];}}
+function alNtChannels(c){
+  const out=[];
+  if(c.wecom)out.push({type:'wecom',url:c.wecom});
+  if(c.ding)out.push({type:'dingtalk',url:c.ding});
+  if(c.feishu)out.push({type:'feishu',url:c.feishu});
+  if(c.sc)out.push({type:'serverchan',key:c.sc});
+  if(c.hook)out.push({type:'webhook',url:c.hook});
+  if(c.akId&&c.akSec&&c.sign&&c.tpl&&c.phone)
+    out.push({type:'sms_aliyun',accessKeyId:c.akId,accessKeySecret:c.akSec,signName:c.sign,templateCode:c.tpl,phone:c.phone});
+  return out;
+}
+async function alNotify(lv,db){
+  const c=alNtCfg(),chs=alNtChannels(c);
+  if(!chs.length){alLog('（未配置告警推送通道，跳过推送）');return;}
+  if(!window.guard||!window.guard.notify){alLog('⚠️ 浏览器模式无推送通道，需用桌面端','w');return;}
+  const title='[AlphaSun ' +GUARD_LV[lv].t+'] 声级 ' +db.toFixed(1)+' dB';
+  const body='级别：'+GUARD_LV[lv].t+'\n声级：'+db.toFixed(1)+' dB（本底 '+GUARD.floor.toFixed(1)+'）'
+    +'\n时间：'+new Date().toLocaleString()+'\n阈值：预警 '+GUARD.thrWarn.toFixed(1)+' / 告警 '+GUARD.thrAlarm.toFixed(1)+' dB';
+  let r=null;
+  try{r=await window.guard.notify({channels:chs.map(x=>Object.assign({level:lv},x)),title:title,body:body});}
+  catch(e){diagAdd('error','推送调用异常：'+((e&&e.message)||e));return;}
+  const rs=(r&&r.results)||[];
+  const okN=rs.filter(x=>x.ok).length;
+  alLog('告警推送：'+okN+'/'+rs.length+' 个通道成功'+(rs.length?'（'+rs.map(x=>x.type+(x.ok?'✓':'✗')).join(' ')+'）':''),okN?'g':'w');
+  for(const x of rs)if(!x.ok)diagAdd('warn','推送通道 '+x.type+' 失败：'+(x.message||'未知'));
+}
+/* ---------- 主循环 ---------- */
+function alTick(){
+  let db=alNowDb();if(db<=-1e8)return;
+  GUARD.lastDb=db;if(db>alPeak)alPeak=db;
+  const nw=$('alertNow');if(nw)nw.textContent='当前 '+db.toFixed(1)+' dB';
+  // 本底评估阶段
+  if(GUARD.state==='eval'){
+    GUARD.evalBuf.push(db);
+    const need=(GUARD.evalSec||5)*1000;
+    if(Date.now()-GUARD.evalT0>=need){
+      const a=GUARD.evalBuf.slice().sort((x,y)=>x-y);
+      GUARD.floor=a[Math.floor(a.length*0.9)]||a[0]||-60;      // 取 L90 作本底，避开偶发峰
+      if(!$('alertAuto').checked){}
+      const wm=parseFloat(($('alertWarnM')||{}).value||'8'),am=parseFloat(($('alertAlarmM')||{}).value||'15');
+      if($('alertAuto').checked){GUARD.thrWarn=GUARD.floor+wm;GUARD.thrAlarm=GUARD.floor+am;GUARD.manual=false;}
+      else{GUARD.thrWarn=parseFloat(($('alertThr')||{}).value||'-30');GUARD.thrAlarm=GUARD.thrWarn+am-wm;GUARD.manual=true;}
+      GUARD.state='normal';
+      alLog('本底评估完成：本底 '+GUARD.floor.toFixed(1)+' dB → 预警 '+GUARD.thrWarn.toFixed(1)+' / 告警 '+GUARD.thrAlarm.toFixed(1)+' dB','g');
+      alPaintTop();
+    }
+    return;
+  }
+  if(GUARD.state==='idle')return;
+  // 判定级别
+  let lv='normal';
+  if(db>=GUARD.thrAlarm)lv='alarm';
+  else if(db>=GUARD.thrWarn)lv='warn';
+  // 事件内统计
+  if(GUARD.ev){GUARD.ev.sum+=db;GUARD.ev.cnt++;if(db>=GUARD.thrWarn)GUARD.ev.over++;
+    if(db>GUARD.ev.peak)GUARD.ev.peak=db;}
+  if(lv==='normal'){
+    if(GUARD.ev){GUARD.relHeld+=0.15;
+      const rel=Math.max(2,parseFloat(($('alertHold')||{}).value||'2'));
+      if(GUARD.relHeld>=rel)alEvFinish();}
+    GUARD.state='normal';
+  }else{
+    GUARD.relHeld=0;
+    if(!GUARD.ev){alEvStart(lv,db);GUARD.state=lv;}
+    else{
+      if(lv==='alarm'&&GUARD.ev.lv!=='alarm'){        // 预警升级为告警
+        GUARD.ev.lv='alarm';alLog('事件 #'+GUARD.ev.id+' 升级为告警（'+db.toFixed(1)+' dB）','e');
+        if($('alertFlash').checked)document.body.classList.add('alarm');
+        if($('alertBeep').checked)alBeep();
+        setTimeout(()=>document.body.classList.remove('alarm'),1200);
+        alCamTrigger();alNotify('alarm',db);}
+      GUARD.state=lv;
+    }
+    // 最长时长保护
+    const maxS=Math.max(5,parseFloat(($('alertMaxEv')||{}).value||'120'));
+    if(GUARD.ev&&(Date.now()-GUARD.ev.tStart)/1000>=maxS){alLog('事件 #'+GUARD.ev.id+' 达到最长时长 '+maxS+'s，自动结束','w');alEvFinish();}
+  }
 }
 async function alBegin(){
   try{$('alertStart').disabled=true;$('alertStop').disabled=false;
@@ -4639,24 +5025,99 @@ async function alBegin(){
     alStream=await navigator.mediaDevices.getUserMedia({audio:cons});
     alCtx=new(window.AudioContext||window.webkitAudioContext)();if(alCtx.state!=='running')alCtx.resume().catch(()=>{});
     alAn=alCtx.createAnalyser();alAn.fftSize=2048;alSrc=alCtx.createMediaStreamSource(alStream);alSrc.connect(alAn);
-    alOn=true;alHeld=0;alPeak=-1e9;$('alertStat').textContent='值守中';alWatch=setInterval(alTick,150);
-    toolLog('alertLog','开始值守（阈值 '+$('alertThr').value+' dB '+$('alertDir').value+' 持续 '+$('alertHold').value+'s）');
+    // 事件录音支路
+    const proc=alCtx.createScriptProcessor(4096,1,1),mute=alCtx.createGain();mute.gain.value=0;
+    proc.onaudioprocess=e=>{const d=e.inputBuffer.getChannelData(0);alWaveFeed(d);
+      if(GUARD.ev){GUARD.pcm.push(new Float32Array(d));GUARD.pcmLen+=d.length;}};
+    alSrc.connect(proc);proc.connect(mute);mute.connect(alCtx.destination);
+    GUARD.proc=proc;GUARD.mute=mute;
+    alOn=true;alHeld=0;alPeak=-1e9;GUARD.t0=Date.now();GUARD.relHeld=0;
+    GUARD.evalSec=Math.max(2,parseFloat(($('alertEval')||{}).value||'5'));
+    if($('alertAuto').checked){GUARD.state='eval';GUARD.evalBuf=[];GUARD.evalT0=Date.now();
+      alLog('开始值守：先做 '+GUARD.evalSec+' 秒本底评估…');}
+    else{GUARD.state='normal';GUARD.thrWarn=parseFloat(($('alertThr')||{}).value||'-30');
+      GUARD.thrAlarm=GUARD.thrWarn+Math.max(1,parseFloat(($('alertAlarmM')||{}).value||'15')-parseFloat(($('alertWarnM')||{}).value||'8'));
+      GUARD.floor=GUARD.thrWarn-8;
+      alLog('开始值守（手动阈值 '+GUARD.thrWarn.toFixed(1)+' dB）');}
+    $('alertStat').textContent='值守中';
+    // 进入全屏值守台
+    const gs=$('guardScreen');if(gs)gs.style.display='flex';
+    if($('alertFull').checked){
+      if(window.guard&&window.guard.fullscreen){try{await window.guard.fullscreen(true);}catch(_){}}
+      else if(gs&&gs.requestFullscreen){try{await gs.requestFullscreen();}catch(_){}}}
+    if(!GUARD.raf)alPaintLoop();
+    alRenderEvents();
+    alWatch=setInterval(alTick,150);
   }catch(e){alStopAll('启动失败：'+((e&&e.message)||e));}
 }
-function alStopAll(reason){
+async function alStopAll(reason){
   if(alWatch){clearInterval(alWatch);alWatch=null;}document.body.classList.remove('alarm');
+  if(GUARD.ev)await alEvFinish();
+  if(GUARD.raf){cancelAnimationFrame(GUARD.raf);GUARD.raf=null;}
+  try{if(GUARD.proc){GUARD.proc.onaudioprocess=null;GUARD.proc.disconnect();}}catch(_){}
+  try{if(GUARD.mute)GUARD.mute.disconnect();}catch(_){}
   try{if(alSrc)alSrc.disconnect();}catch(_){}
   try{if(alStream)alStream.getTracks().forEach(t=>t.stop());}catch(_){}
+  try{if(GUARD.camStream)GUARD.camStream.getTracks().forEach(t=>t.stop());}catch(_){}
   try{if(alCtx&&alCtx.state!=='closed')alCtx.close().catch(()=>{});}catch(_){}
-  alOn=false;alSrc=null;alStream=null;alCtx=null;
-  $('alertStart').disabled=false;$('alertStop').disabled=true;$('alertStat').textContent='待命';$('alertNow').textContent='当前 -- dB';
-  toolLog('alertLog','停止值守：'+(reason||'手动'),'w');
+  alOn=false;alSrc=null;alStream=null;alCtx=null;GUARD.state='idle';GUARD.ev=null;
+  const gs=$('guardScreen');if(gs)gs.style.display='none';
+  if(window.guard&&window.guard.fullscreen){try{await window.guard.fullscreen(false);}catch(_){}}
+  else if(document.fullscreenElement){try{await document.exitFullscreen();}catch(_){}}
+  $('alertStart').disabled=false;$('alertStop').disabled=true;$('alertStat').textContent='待命';
+  $('alertNow').textContent='当前 -- dB';
+  alLog('停止值守：'+(reason||'手动'),'w');
+}
+function alExpAll(){
+  if(!GUARD.evs.length){toast('暂无事件');return;}
+  const L=['AlphaSun 声波警戒值守 · 事件汇总','生成时间 '+new Date().toLocaleString(),
+    '本底 '+GUARD.floor.toFixed(1)+' dB · 预警 '+GUARD.thrWarn.toFixed(1)+' · 告警 '+GUARD.thrAlarm.toFixed(1)+' dB',''];
+  for(const ev of GUARD.evs){
+    L.push('--- 事件 #'+ev.id+' ---');L.push(alEvAnalysis(ev));L.push('');
+  }
+  l2Dl(new Blob([L.join('\n')],{type:'text/plain'}),'警戒事件汇总_'+toolTs()+'.txt');
+  // CSV 便于统计
+  const csv=['序号,级别,开始,结束,时长秒,峰值dB,均值dB,超阈占比%,音频,图像,视频'];
+  for(const ev of GUARD.evs.slice().reverse())
+    csv.push([ev.id,GUARD_LV[ev.lv].t,ev.tStart.toLocaleString(),ev.tEnd.toLocaleString(),
+      (ev.durMs/1000).toFixed(1),ev.peak.toFixed(1),ev.avg.toFixed(1),ev.overPct.toFixed(0),
+      ev.wavPath||'',ev.shotPath||'',ev.videoPath||''].map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(','));
+  l2Dl(new Blob([csv.join('\n')],{type:'text/csv'}),'警戒事件汇总_'+toolTs()+'.csv');
+  toast('已导出 '+GUARD.evs.length+' 条事件（txt + csv）；音频/图像需单独导出');
 }
 $('alertStart').addEventListener('click',alBegin);
 $('alertStop').addEventListener('click',()=>alStopAll('手动'));
+$('gExit').addEventListener('click',()=>alStopAll('退出值守台'));
+$('gEvExpAll').addEventListener('click',alExpAll);
+$('gEvClear').addEventListener('click',()=>{if(!GUARD.evs.length){toast('列表已空');return;}
+  GUARD.evs=[];GUARD.seq=0;alRenderEvents();toast('已清空事件列表');});
+$('alertNotifyBtn').addEventListener('click',()=>{const c=$('alertNotifyCfg');
+  if(c){c.style.display=(c.style.display==='none'||!c.style.display)?'block':'none';alNtFill();}});
+$('ntSave').addEventListener('click',()=>{alNtSave();toast('推送配置已保存到本机');});
+$('ntTest').addEventListener('click',async()=>{
+  const c=alNtSave(),chs=alNtChannels(c);
+  if(!chs.length){toast('请先填写至少一个推送通道');return;}
+  if(!window.guard||!window.guard.notify){toast('浏览器模式无推送通道，请用桌面端');return;}
+  const r=await window.guard.notify({channels:chs,title:'[AlphaSun 测试] 告警推送连通性测试',
+    body:'这是一条测试消息，用于验证推送配置是否正确。\n时间 '+new Date().toLocaleString()});
+  const rs=(r&&r.results)||[],okN=rs.filter(x=>x.ok).length;
+  toast('测试发送：'+okN+'/'+rs.length+' 成功');
+  for(const x of rs)alLog('推送 '+x.type+'：'+(x.ok?'成功':'失败 '+(x.message||'')),x.ok?'g':'w');
+});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('guardScreen')&&$('guardScreen').style.display!=='none')alStopAll('Esc 退出');});
 $('alertExpLog').addEventListener('click',()=>{const L=$('alertLog');if(!L||!L.children.length){toast('暂无值守日志');return;}
   let t='AlphaSun 声波警戒值守日志\n生成时间 '+new Date().toLocaleString()+'\n\n';for(const c of L.children)t+=c.textContent+'\n';
   l2Dl(new Blob([t],{type:'text/plain'}),'alert_log_'+toolTs()+'.txt');});
+// 摄像头设备枚举（需先获得过权限才能拿到可用 label）
+(async()=>{try{
+  const ds=await navigator.mediaDevices.enumerateDevices();
+  const sel=$('alertCamDev');if(!sel)return;
+  ds.filter(d=>d.kind==='videoinput').forEach((d,i)=>{
+    const o=document.createElement('option');o.value=d.deviceId;
+    o.textContent=(d.label||('摄像头 '+(i+1))).slice(0,40);sel.appendChild(o);});
+}catch(_){}})();
+alNtFill();
+alRenderEvents();
 
 // ---- ③ 会议语音转写（v2.15.0：三语 + 云端/本地双模式 + 实时波形 + 原始录音保存）----
 let asrOn=false,asrFinal='',asrT0=null,asrSents=[];
@@ -5184,21 +5645,81 @@ resize();frame();
       </div>
     </div>
   </div>
-  <!-- v2.13.x 音频工具集②：声波警戒值守 -->
+  <!-- v2.17.0 声波警戒值守台（全屏）。
+       必须 body 直属：.app 有 z-index + zoom 会形成层叠上下文，放进去会被主画布遮挡。 -->
+  <div id="guardScreen" class="guard" style="display:none">
+    <div class="gTop">
+      <div class="gClock"><span id="gTime" class="gT">--:--:--</span><span id="gDate" class="gD">----</span></div>
+      <div class="gDbBox"><span id="gDb" class="gDb">--</span><span class="gUnit">dB</span>
+        <span id="gDbLbl" class="gLbl">本底评估中…</span></div>
+      <div class="gStateBox"><span id="gState" class="gState">评估中</span>
+        <span id="gDur" class="gDur">00:00:00</span></div>
+      <button class="gExit" id="gExit">退出值守 Esc</button>
+    </div>
+    <div class="gMain">
+      <div class="gCenter">
+        <canvas id="gWave" class="gWave"></canvas>
+        <canvas id="gRing" class="gRing"></canvas>
+      </div>
+      <div class="gSide">
+        <div class="gLamp" id="gLampAlarm" data-lv="alarm"><i></i><span>告警</span><b id="gLampAlarmTxt">—</b></div>
+        <div class="gLamp" id="gLampWarn" data-lv="warn"><i></i><span>预警</span><b id="gLampWarnTxt">—</b></div>
+        <div class="gLamp on" id="gLampNormal" data-lv="normal"><i></i><span>正常</span><b id="gLampNormalTxt">—</b></div>
+        <div class="gInfo"><div>本底<b id="gFloor">—</b></div><div>峰值<b id="gPeak">—</b></div>
+          <div>事件<b id="gEvNum">0</b></div></div>
+      </div>
+    </div>
+    <div class="gBottom">
+      <div class="gEvHead"><span>事件记录</span>
+        <button class="cap2" id="gEvExpAll">导出全部</button>
+        <button class="cap2" id="gEvClear">清空列表</button>
+        <span class="hint" id="gEvHint">每条事件含：起止时间 · 音频分析 · 录音回放 · 告警图像/视频</span></div>
+      <div class="gEvList" id="gEvList"></div>
+    </div>
+  </div>
+  <!-- v2.17.0 音频工具集②：声波警戒值守（全屏值守台 + 事件系统 + 摄像头 + 告警推送） -->
   <div class="toolmask" id="alertMask">
     <div class="toolcard">
       <div class="toolhead"><span class="toolttl">🛡️ 声波警戒值守</span><button class="toolx" id="alertClose">✕</button></div>
       <div class="toolbody">
-        <div class="toolrow"><label>阈值 dB</label><input id="alertThr" type="number" step="1" value="-30">
-          <span class="hint">与顶栏 dB 同标度（≈ -60 静音 ~ 0 满量程）</span></div>
-        <div class="toolrow"><label>方向</label><select id="alertDir"><option value="above">高于</option><option value="below">低于</option></select>
-          <label>持续(秒)</label><input id="alertHold" type="number" min="0" max="600" value="2"></div>
-        <div class="toolrow"><label class="sw"><input id="alertFlash" type="checkbox" checked> 屏幕闪烁</label>
-          <label class="sw"><input id="alertBeep" type="checkbox" checked> 提示音</label></div>
+        <div class="toolrow"><label>手动阈值 dB</label><input id="alertThr" type="number" step="1" value="-30">
+          <label>静默回落(秒)</label><input id="alertHold" type="number" min="0" max="600" value="2">
+          <span class="hint">取消「自动评估本底」时按手动阈值判预警；回落持续该时长即结束事件</span></div>
+        <div class="toolrow"><label class="sw"><input id="alertAuto" type="checkbox" checked> 自动评估本底</label>
+          <span class="hint">评估</span><input id="alertEval" type="number" min="2" max="60" value="5" style="width:54px">
+          <span class="hint">秒；预警余量</span><input id="alertWarnM" type="number" step="1" value="8" style="width:54px">
+          <span class="hint">dB，告警余量</span><input id="alertAlarmM" type="number" step="1" value="15" style="width:54px">
+          <span class="hint">dB</span></div>
+        <div class="toolrow"><label class="sw"><input id="alertFull" type="checkbox" checked> 全屏值守台</label>
+          <label class="sw"><input id="alertFlash" type="checkbox" checked> 屏幕闪烁</label>
+          <label class="sw"><input id="alertBeep" type="checkbox" checked> 提示音</label>
+          <label>事件最长(秒)</label><input id="alertMaxEv" type="number" min="5" max="600" value="120" style="width:64px"></div>
+        <div class="toolrow"><label class="sw"><input id="alertCam" type="checkbox" checked> 告警时启用摄像头</label>
+          <label class="sw"><input id="alertCamShot" type="checkbox" checked> 抓拍</label>
+          <label class="sw"><input id="alertCamRec" type="checkbox"> 录像</label>
+          <span class="hint">录</span><input id="alertCamSec" type="number" min="3" max="120" value="15" style="width:54px">
+          <span class="hint">秒</span><select id="alertCamDev"><option value="">默认摄像头</option></select></div>
         <div class="toolrow"><button class="cap2" id="alertStart">▶ 开始值守</button>
           <button class="cap2" id="alertStop" disabled>■ 停止</button>
+          <button class="cap2" id="alertNotifyBtn">🔔 告警推送设置</button>
           <span id="alertStat" class="hint">待命</span></div>
         <div class="toolrow"><span id="alertNow" class="mono">当前 -- dB</span></div>
+        <div id="alertNotifyCfg" style="display:none">
+          <div class="toolrow"><label>企业微信机器人</label><input id="ntWecom" type="text" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…" style="flex:1"></div>
+          <div class="toolrow"><label>钉钉机器人</label><input id="ntDing" type="text" placeholder="https://oapi.dingtalk.com/robot/send?access_token=…" style="flex:1"></div>
+          <div class="toolrow"><label>飞书机器人</label><input id="ntFeishu" type="text" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/…" style="flex:1"></div>
+          <div class="toolrow"><label>Server酱 SendKey</label><input id="ntSc" type="text" placeholder="SCT…（推送到微信）" style="flex:1">
+            <label>自定义 Webhook</label><input id="ntHook" type="text" placeholder="POST JSON 地址" style="flex:1"></div>
+          <div class="toolrow"><label>阿里云短信</label>
+            <input id="ntAkId" type="text" placeholder="AccessKeyId" style="width:120px">
+            <input id="ntAkSec" type="password" placeholder="AccessKeySecret" style="width:130px">
+            <input id="ntSign" type="text" placeholder="短信签名" style="width:100px">
+            <input id="ntTpl" type="text" placeholder="模板Code" style="width:110px">
+            <input id="ntPhone" type="text" placeholder="手机号" style="width:110px"></div>
+          <div class="toolrow"><button class="cap2" id="ntSave">保存推送配置</button>
+            <button class="cap2" id="ntTest">发送测试</button>
+            <span class="hint">配置保存在本机 localStorage；短信需自备阿里云账号（付费）</span></div>
+        </div>
         <div class="toollog" id="alertLog"></div>
         <div class="toolrow"><button class="cap2" id="alertExpLog">导出值守日志</button></div>
       </div>
