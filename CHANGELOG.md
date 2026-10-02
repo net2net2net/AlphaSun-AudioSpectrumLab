@@ -66,6 +66,15 @@
   `npm run envtest` 32 项全通过。
 - 反向验证：改 `gWave` id / 改默认可见 / 拆掉蓝色正常灯 → 门禁**均被拦截报错**，确认断言非装饰。
 
+### 交付（MD5）
+
+- Windows 便携版 `AlphaSun-AudioLab-2.17.0-portable.exe`（69 MB）：`8e96c45ad244559b81e5782826f565f0`
+- Linux x64 `AlphaSun-AudioLab-2.17.0-linux-x64.tar.gz`（99 MB）：`36edebf2cb2279a6c2af7c7584a64c7e`
+- `npm run sync` 三处源码 MD5 一致（根 / `www/` / Android assets）：`dd949d8d1fd288d4c3efd37ef67c28bc`；`check.js` 五阶段全绿。
+- 门禁：`npm run qa`（Electron 真机）**44 / 44 通过**；`npm run envtest` **32 / 32 通过**。
+- 反向验证：改 `gWave` id / 值守台默认改为可见 / 拆掉蓝色正常灯 —— 三次变异**均被门禁拦截**，还原后 `index.html` 与变异前逐字节一致。
+- 构建中间产物已全部落在系统 TEMP 并自动清理，最终产物回落到项目内 `dist/`；`C:\Users\net2n\` 无新增产物残留。
+
 ## v2.16.0（2026-10-03）—— 环境音频采集：实时波形 / 地点+时间命名 / 多维度环境评估报告
 
 ### ① 采集时实时波形
