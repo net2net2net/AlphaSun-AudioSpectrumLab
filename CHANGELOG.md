@@ -5,6 +5,52 @@
 
 
 
+## v2.22.0（2026-10-03）—— 页脚版本号根治 + DSP 链路条可读性 + 旧文档/过程文档清理
+
+### 修复 ①：页脚版本号落后 9 个版本（v2.0.0 事故复发，根治）
+
+- **现象**：界面底部页脚显示 `Audio Spectrum Lab v2.12.0`，而实际版本已是 v2.21.0 —— **落后 9 个版本**。
+- **真因**：页脚是**硬编码静态文本**，而 `validate.js` 的「五点版本一致性」只校验
+  `APP_VER` 常量 / `appVer` span / `package.json` / `sw.js` / `gradle`，**页脚不在校验范围**。
+  这正是 validate 注释里写明的「v2.0.0 事故教训：页脚静态文本漏改逃过五点校验」的**复发**。
+- **修复（根治）**：页脚改为 `<span id="footVer">` 占位，脚本加载时用 `APP_VER` 动态填充
+  （与 `appVer` 共用同一段填充逻辑）→ 今��� `bump-version.js` 改版本时页脚**自动跟随，永不再漏**。
+
+### 修复 ②：左侧 DSP 链路条竖排标签被挤成两行重叠
+
+- **现象**：主界面左侧「声波采集 / 信号预处理 / 特征提取 / 分离前后 / 频谱模态」竖排标签
+  因 `white-space:nowrap` 文字溢出容器，被挤压成两行且互相重叠，可读性差。
+- **修复**：`.pipeline` 容器加 `width:max-content;max-width:76px` 按最长标签自适应；
+  `.pl-node{max-width:100%}`；`.pl-tx` 改 `letter-spacing:.2px` + `overflow:hidden;text-overflow:ellipsis`
+  优雅截断而非硬溢出。截图验证：标签恢复单行清晰、激活项青色高亮、链路点亮正常。
+
+### 旧文档 / 过程文档清理（用户明确要求）
+
+- **`过程文档.md` 重写**（此前停在 v2.13.0，且构建章节仍是**已废弃命令**
+  `env -u ELECTRON_RUN_AS_NODE npx electron-builder`，会误导后续迭代）：
+  - 目录结构更新到 v2.22.0 现状（含派生目录勿手改的约束）；
+  - 能力演进脉络补齐 **v2.14 → v2.22** 全部关键决策（三模块成型、AudioWorklet 根治崩溃、
+    `window.prompt` 崩溃、云端优先路线、跨模块麦克风解锁、截图驱动美观改造）；
+  - 技术判断新增「测试脚本自身也会骗人」「CSS 两个高频陷阱」「跨模块状态必须统一解锁」三条；
+  - 构建章节标注**现行命令**（`build-dist.js`）并把历史命令降级为决策依据；
+  - 质量保障表补全 6 个门禁；诚实边界补云端转写需 Key/Vosk 未捆绑/假设备局限。
+- **`docs/prd-voice-incremental.md` 加归档标注**（历史 PRD，非待办）：
+  说明其「纯离线 WASM STT」路线**大部分未采用**，实际落地为「云端 DashScope 为主 + 本地 Vosk 为辅 +
+  浏览器 Web Speech 兜底」的 auto 路线，并列表对照「本文设想 vs 实际落地」，保留全文供追溯。
+- README 文档索引同步标注该 PRD 为归档件。
+
+### 门禁（全绿，零回归）
+
+`check` 五阶段 · `qa` **44/44** · `guardsmoke` **25/25** · `audiosmoke` **39/39** · `micsmoke` **8/8** · `respgate` **34/34**。
+
+### 交付（MD5）
+
+- Windows 便携版（**单文件**）`AlphaSun-AudioLab-2.22.0-portable.exe`（68.0 MB）：`d9fe36ada5bb230dee08dc347087d7c1`
+- Linux x64 `AlphaSun-AudioLab-2.22.0-linux-x64.tar.gz`（98.9 MB）：`d4c3f45173528e19d08a07901d9d104a`
+- Android 自签 release `AlphaSun-AudioLab-2.22.0.apk`（6.0 MB，versionCode 37）：`b1e6f52f6cc04c078896bcf9e0708973`
+- 旧版本产物已清理：`dist/` 仅保留当前版三件（v2.21.0 已删，均已发布到 Release 且可再生）。
+- 三处源码 MD5 一致（根 / `www/` / Android assets）。
+
 ## v2.21.0（2026-10-03）—— 界面真实截图审查 + 修复三处 CSS 污染缺陷（大窗口首次真正生效）
 
 ### 缘起：建立「视觉证据」基础设施
