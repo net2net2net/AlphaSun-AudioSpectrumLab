@@ -221,6 +221,30 @@ ipcMain.handle('asr:keyStatus', async () => {
   const k = dashKey();
   return { hasKey: !!k, source: process.env.DASHSCOPE_API_KEY ? 'env' : (k ? 'file' : 'none') };
 });
+/* v2.24.0 云端连通性探测：keyStatus 只读本机文件、测不出「网络断 / 云端不可用」，
+   而 auto 模式此前只看 hasKey 就认定云端可用 → 网络一断实时转写直接哑掉且不降级。
+   这里用一次极轻量的鉴权请求（不提交音频、不产生转写计费）判断云端是否真的可达。*/
+ipcMain.handle('asr:ping', async () => {
+  const k = dashKey();
+  if (!k) return { ok: false, error: 'NO_KEY', message: '未配置 API Key' };
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6000);   // 6s 超时，避免长时间挂起
+    try {
+      const r = await fetch(DASH_BASE + '/api/v1/services/aigc/multimodal-generation/generation', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + k, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: DASH_MODEL, input: { messages: [{ role: 'user', content: [{ text: 'ping' }] }] }, parameters: { max_tokens: 1 } }),
+        signal: ctl.signal,
+      });
+      // 鉴权失败(401/403)说明 Key 无效；其它状态码说明网络可达（服务侧业务错误也算连通）
+      if (r.status === 401 || r.status === 403) return { ok: false, error: 'BAD_KEY', message: 'API Key 无效或已失效' };
+      return { ok: true, status: r.status };
+    } finally { clearTimeout(timer); }
+  } catch (e) {
+    return { ok: false, error: 'NET', message: (e && e.message) || String(e) };
+  }
+});
 ipcMain.handle('asr:setKey', async (_e, k) => {
   try { dashSaveKey(k); return { ok: true }; }
   catch (e) { return { ok: false, message: (e && e.message) || String(e) }; }
