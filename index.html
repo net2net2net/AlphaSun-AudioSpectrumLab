@@ -791,7 +791,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.22.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.23.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1834,7 +1834,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.22.0',APP_BUILD='20261003';
+const APP_VER='2.23.0',APP_BUILD='20261003';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';
   // v2.21.0：页脚版本号原为硬编码静态文本（曾停留在 v2.12.0，落后 9 个版本），
   // 逃过了 validate 的「五点版本一致性」校验（该校验只覆盖 APP_VER/appVer span/package/sw/gradle）。
@@ -3243,7 +3243,20 @@ E.labExpBtn.addEventListener('click',async()=>{const all=await labAll();
 dbLoad().then(refreshCacheStats).catch(()=>{});
 
 let recog=null,asrGot=false,asrErr=false,asrStartT=0;
-function setupASR(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+/* v2.23.0：SpeechRecognition 会话是独立于 MediaStream 的麦克风占用源。
+   stop() 是异步的，底层释放有延迟；若不置 null，反复开关采集会堆积多个
+   「已启动未释放」的识别会话，后续 getUserMedia 必撞 NotReadableError。
+   故统一用 recogStopSession() 真正终止（stop + abort + 置 null）。*/
+function recogStopSession(){
+  const r=recog;recog=null;
+  if(!r)return;
+  try{r.onend=null;r.onresult=null;r.onerror=null;r.onaudiostart=null;}catch(_){}
+  try{r.abort&&r.abort();}catch(_){}          // abort 立即释放，比 stop 更硬
+  try{r.stop&&r.stop();}catch(_){}
+}
+function setupASR(){
+  recogStopSession();                          // v2.23.0：先彻底终止旧会话，杜绝堆积
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){recog=null;return;}   // 浏览器不支持：交由 analyzeFrame 在人声出现时显「语音识别失败（浏览器不支持）」
   try{recog=new SR();recog.lang='zh-CN';recog.continuous=true;recog.interimResults=true;
     recog.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;
@@ -3272,6 +3285,8 @@ function releaseGhostMic(keep){
   try{if(keep!=='env'&&!envOn&&!envListening)_stopTracks(envStream);}catch(_){}
   try{if(keep!=='guard'&&!alOn)_stopTracks(alStream);}catch(_){}
   try{if(keep!=='asr'&&!asrOn)try{_stopTracks(typeof ASR_CAP!=='undefined'?ASR_CAP.stream:null);}catch(_){}}catch(_){}
+  // v2.23.0：转写停止/切换其它采集时，识别会话（recog）也必须终止，否则 Web Speech 会一直占麦
+  if(keep!=='asr'){try{recogStopSession();}catch(_){}}
 }
 // 麦克风采集：三级约束降级（严格→保留设备选择的宽松→裸 audio:true），最大化设备兼容性
 async function openMic(){const base={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
@@ -3282,7 +3297,7 @@ async function openMic(){const base={echoCancellation:false,noiseSuppression:fal
 function micErrText(e){const n=(e&&e.name)||'';
   if(/NotAllowed|PermissionDenied/.test(n))return '❌ 麦克风权限被拒 → 桌面版请检查 Windows 设置→隐私和安全性→麦克风→「允许桌面应用访问麦克风」；浏览器请点地址栏🔒图标允许麦克风后刷新';
   if(/NotFound|DevicesNotFound/.test(n))return '❌ 未找到麦克风设备 → 请检查设备连接、驱动，或在顶栏下拉框选择其他输入设备';
-  if(/NotReadable|TrackStart/.test(n))return '❌ 麦克风被其他程序占用 → 请关闭正在使用麦克风的软件（或重启电脑）后重试';
+  if(/NotReadable|TrackStart/.test(n))return '❌ 麦克风被占用 → 本应用已自动清理内部残留（v2.23.0）。若仍报错，通常是其它软件正在使用麦克风：请关闭微信/钉钉/Teams/会议/录屏等，或退出本应用后重启电脑再试；也可在浏览器端先打开系统「设置→隐私和安全性→麦克风」确认本应用未被禁用。';
   if(/Overconstrained/.test(n))return '❌ 设备不支持当前采集参数（已自动降级仍失败）→ 请在顶栏更换输入设备';
   if(/SecurityError/.test(n))return '❌ 安全上下文限制 → 请使用桌面版 EXE，或通过 https/localhost 打开';
   return '❌ 无法访问麦克风：'+(n||(e&&e.message)||'未知错误');}
@@ -3339,7 +3354,8 @@ async function start(){
   E.verTxt.textContent='启动失败';E.verDot.style.background='#ff5d6e';E.engineB.textContent='待机';E.capBtn.classList.add('paused');E.capTxt.textContent='开始采集';}}
 // v2.5.0 需求④：信号处理链路图示 —— 采集时逐级点亮，停止时熄灭（纯展示，失败静默）
 function setChain(on){ /* v2.8.0：顶部横排链路图示已移除，空操作保留兼容 */ }
-function stop(){running=false;setChain(false);if(raf)cancelAnimationFrame(raf);if(recog)try{recog.stop();}catch(_){}
+function stop(){running=false;setChain(false);if(raf)cancelAnimationFrame(raf);
+  recogStopSession();   // v2.23.0：真正终止识别会话（置 null），杜绝会话堆积占麦
   // v2.5.0：二级台正借用主流录制时先正常收尾（否则 tracks 被直接掐断，onstop 只能拿到残缺音频）
   if(typeof L2!=='undefined'&&L2&&L2.recOn){try{l2RecToggle().catch(()=>{});}catch(_){}}
   if(stream)stream.getTracks().forEach(t=>t.stop());if(audioCtx)audioCtx.close();
@@ -5532,10 +5548,10 @@ async function asrAutoTick(){
   if(want===asrEngine)return;
   if(want==='dash'){
     if(asrVosk.rec)asrVoskCleanup();
-    if(recog){try{recog.stop();}catch(_){}recog=null;}
+    recogStopSession();   // v2.23.0：彻底终止识别会话（abort+stop+置null）
     asrEngine='dash';asrPaintEng();toast('☁️ 已自动升级到云端转写');
   }else if(want==='vosk'&&asrEngine!=='vosk'){
-    if(recog){try{recog.stop();}catch(_){}recog=null;}
+    recogStopSession();   // v2.23.0
     asrEngine='vosk';asrPaintEng();await asrBeginVoskRec();toast('已降级到本地 Vosk 离线转写');
   }else if(want==='web'&&asrEngine!=='web'){
     if(asrVosk.rec)asrVoskCleanup();
@@ -5621,7 +5637,9 @@ function asrBeginWeb(){
   recog.onresult=e=>{let fin='',it='';for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript;else it+=e.results[i][0].transcript;}
     asrFinal+=fin;renderAsr(it);};
   recog.onerror=ev=>{if(ev.error==='network')$('asrStat').textContent='⚠️ 需联网（Web Speech 走云端）';else if(ev.error!=='no-speech')$('asrStat').textContent='⚠️ '+ev.error;};
-  recog.onend=()=>{if(asrOn){try{recog.start();}catch(_){}}};
+  // v2.23.0：onend 在转写进行时重启（保持原行为）；会话终止统一由 recogStopSession 负责（stop+abort+置null），
+  // 杜绝反复开关导致的会话堆积占麦。
+  recog.onend=()=>{if(asrOn){try{recog&&recog.start();}catch(_){}}};
   try{recog.start();}catch(e){$('asrStat').textContent='启动失败：'+((e&&e.message)||e);return;}
   $('asrStat').textContent='转写中（Web Speech）…';
 }
@@ -5666,7 +5684,7 @@ async function asrStop(){
     }
   }
   asrOn=false;asrVoskCleanup();asrCapStop();asrWaveStop();asrWaveDraw();
-  if(recog){try{recog.stop();}catch(_){}}
+  recogStopSession();   // v2.23.0：真正终止识别会话（置 null）
   $('asrStart').disabled=false;$('asrStop').disabled=true;
   const st=$('asrStat');if(st&&/转写中|录制中/.test(st.textContent))st.textContent='已停止';
   renderAsr('');
