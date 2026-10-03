@@ -1,6 +1,6 @@
 {
   "name": "alphasun-audio-spectrum-lab",
-  "version": "2.19.0",
+  "version": "2.21.0",
   "private": true,
   "description": "AlphaSun 声波分析仪 — 实时音频频谱与智能分类（麦克风驱动，本地计算）",
   "author": "阳光 net2net2net (VX: net2net)",
@@ -15,6 +15,8 @@
     "envtest": "node tools/env-report-selftest.js",
     "guardsmoke": "node tools/guard-smoke.js",
     "audiosmoke": "node tools/audio-tools-smoke.js",
+    "micsmoke": "node tools/mic-smoke.js",
+    "uishot": "node tools/ui-shot.js",
     "bump": "node tools/bump-version.js",
     "dist": "node tools/check.js && node tools/build-dist.js win linux",
     "dist:win": "node tools/check.js && node tools/build-dist.js win",
