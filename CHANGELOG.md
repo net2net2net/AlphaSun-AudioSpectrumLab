@@ -5,6 +5,53 @@
 
 
 
+## v2.18.0（2026-10-03）—— 音频工具集全按钮崩溃排查 + 触摸/响应式盲区补全 + 全平台打包
+
+### 核心修复：会议转写「云端设置」按钮崩溃（unhandled rejection）
+
+上一轮修好了「开始转写即崩」，但用户反馈另有一些按钮点击后软件崩溃。本轮用**假麦克风真机**把
+「音频工具集」三大工具的全部按钮逐个点了一遍（新增 `tools/audio-tools-smoke.js`），
+定位到根因：`asrKeyBtn`（云端设置）处理器调用了 **`window.prompt()`**——
+
+> Electron 渲染进程**不支持 `window.prompt`**，点击即抛 `prompt() is and will not be supported`，
+> 变成 **unhandled rejection**，表现为点了按钮后软件无响应/闪退，控制台却看不到明确崩溃点。
+
+改为**面板内联密码输入框**（与其它设置项同款），桌面端与网页端通用，彻底消除该崩溃。
+（已核实 index.html 内仅此一处 `prompt()`，其余 `alert`/`confirm` Electron 原生支持，不受影响。）
+
+### 防回归：音频工具集全按钮冒烟（新增）
+
+- `tools/audio-tools-smoke.js`（`npm run audiosmoke`）**37 / 37 全绿**，
+  覆盖「环境音频采集 / 声波警戒值守 / 会议语音转写」的全部按钮与交互：
+  - 模式切换（手动/定时/声级触发）、开始/停止、保存原始录音、生成/导出评估报告、导出采集日志；
+  - 推送设置展开/保存配置/发送测试（空通道）、导出值守日志、事件列表「导出全部/清空」；
+  - 转写开始/停止、复制/导出文字稿、保存录音、云端设置（内联输入）、模式/语言切换触发引擎探测。
+- 用 Chrome 假麦克风真跑录音链路，捕获 `pageerror` / `renderer crash` / `console.error`；
+  下载与 `prompt` 弹窗由 harness 接管，避免测试窗挂死。
+
+### 响应式/触摸盲区补全
+
+- `tools/responsive-gate.js`（`npm run respgate`）由 **31 → 34 项**：
+  新增**主界面 / 工具菜单按钮触摸目标 ≥44px** 断言（此前只量了值守台 `gExit`，
+  漏量主界面与工具面板按钮）。4 视口（桌面/手机竖/手机横/平板竖）+ 触摸模拟下全部达标。
+- v2.18.0 触摸层（CSS `@media(hover:none) and (pointer:coarse)`）：按钮/下拉框/输入框 `min-height:44px`、
+  复选框 20px 且由外层 `label.sw` 提供 44px 点击区；值守台横竖屏/刘海屏（`env(safe-area-inset-*)`）适配。
+
+### 交付（MD5）
+
+- Windows 便携版（单文件）`AlphaSun-AudioLab-2.18.0-portable.exe`（68 MB）：`9ccff37670272cbd0c9f27004fe5540a`
+- Linux x64 `AlphaSun-AudioLab-2.18.0-linux-x64.tar.gz`（99 MB）：`c7e94e8e5805d37d82b11bf139cec2ee`
+- Android 自签 release `AlphaSun-AudioLab-2.18.0.apk`（6.0 MB，versionCode 33）：`052bf48718de90ba388ea52a6bc95e79`
+- `npm run sync` 三处源码 MD5 一致（根 / `www/` / Android assets）；`check.js` 五阶段全绿。
+- 门禁：`npm run qa` **44 / 44**；`npm run guardsmoke` **21 / 21**；
+  `npm run audiosmoke` **37 / 37**；`npm run respgate` **34 / 34**。
+
+### 已知限制（诚实标注，非缺陷）
+
+- **macOS 版**：electron-builder「Build for macOS is supported only on macOS」——Windows 主机无法出 mac 包。
+- **iOS / iPad IPA**：需 macOS + Xcode + Apple Developer 账号签名，本环境完全不可为。
+- 可选离线模型（Vosk 中/英文）未捆绑进测试环境，本地模式引擎探测会 404 并优雅回退，属预期。
+
 ## v2.17.1（2026-10-03）—— 修复「会议语音转写」一按开始就崩溃（录音链路全面改用 AudioWorklet）
 
 ### 问题
