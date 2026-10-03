@@ -126,6 +126,36 @@ function chk(name, ok, detail) {
     'wave=' + JSON.stringify(ev.wave) + ' ring=' + JSON.stringify(ev.ring));
   chk('左上电平表画布已渲染（v2.19.0 缩小不遮挡）', ev.level.w > 0 && ev.level.h > 0, 'gLevel=' + JSON.stringify(ev.level));
 
+  console.log('\n[4.5] 暂停 / 恢复（v2.24.0：保持麦克风，暂停判定与录音）');
+  const durBefore = await page.evaluate(() => (document.getElementById('gDur') || {}).textContent);
+  await page.click('#gPause');
+  await page.waitForTimeout(1200);
+  const paused = await page.evaluate(() => ({
+    btn: (document.getElementById('gPause') || {}).textContent,
+    state: (document.getElementById('gState') || {}).textContent,
+    cls: (document.getElementById('gState') || {}).className || '',
+    db: (document.getElementById('gDb') || {}).textContent,
+  }));
+  chk('点击暂停后状态显示「已暂停」且按钮变「继续」',
+    /已暂停/.test(paused.state || '') && /继续/.test(paused.btn || ''),
+    'state=' + paused.state + ' btn=' + paused.btn);
+  chk('暂停态有独立样式标记（paused）', /paused/.test(paused.cls || ''), 'class=' + paused.cls);
+  // 暂停时计时应冻结
+  const durDuring = await page.evaluate(() => (document.getElementById('gDur') || {}).textContent);
+  await page.waitForTimeout(1600);
+  const durAfter = await page.evaluate(() => (document.getElementById('gDur') || {}).textContent);
+  chk('暂停期间计时冻结（麦克风仍保持开启）', durDuring === durAfter,
+    durBefore + ' → ' + durDuring + ' → ' + durAfter);
+  await page.click('#gPause');
+  await page.waitForTimeout(1200);
+  const resumed = await page.evaluate(() => ({
+    btn: (document.getElementById('gPause') || {}).textContent,
+    state: (document.getElementById('gState') || {}).textContent,
+  }));
+  chk('再次点击恢复值守（按钮回到「暂停」且状态不再是已暂停）',
+    /暂停/.test(resumed.btn || '') && !/已暂停/.test(resumed.state || ''),
+    'state=' + resumed.state + ' btn=' + resumed.btn);
+
   console.log('\n[5] 顶部时钟在走');
   await page.waitForTimeout(1500);
   const time2 = await page.evaluate(() => (document.getElementById('gTime') || {}).textContent);
