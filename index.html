@@ -189,6 +189,84 @@
     padding:10px 12px;font-size:12px;line-height:1.65;color:#d8f5e6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;margin:6px 0}
   @keyframes alFlash{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,93,115,0)}50%{box-shadow:inset 0 0 0 6px rgba(255,93,115,.65)}}
   body.alarm{animation:alFlash .5s ease-in-out infinite}
+
+  /* ===== v2.18.0 触摸层（实测：主界面按钮原为 40px、下拉框 30px、复选框 13px，均低于 44px 触控标准）===== */
+  @media(hover:none) and (pointer:coarse){
+    button,.cap,.cap2,.toolx,.gExit,.gEv button,.toolsMenu button,.tmTtl{-webkit-tap-highlight-color:transparent}
+    button:active,.cap:active,.cap2:active,.toolx:active,.gExit:active,.gEv button:active,.toolsMenu button:active{
+      transform:scale(.96);filter:brightness(1.25);transition:transform .06s,filter .06s}
+    .gEvList,.envrep,.panel,.toolbody{-webkit-overflow-scrolling:touch}
+    input:focus,select:focus,textarea:focus{font-size:16px}
+    /* 触控目标 ≥44px（Apple HIG / Material 一致要求） */
+    button,.cap,.cap2,.toolx,select{min-height:44px}
+    input[type=text],input[type=number]{min-height:44px}
+    /* 复选框本体只有 13px，靠外层 label.sw 提供 44px 点击区 */
+    label.sw{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 6px;cursor:pointer}
+    input[type=checkbox]{width:20px;height:20px;flex:none}
+    .toolrow{gap:8px}
+  }
+
+  /* ===== v2.18.0 值守台：横竖屏 / 触摸 / 刘海屏适配 ===== */
+  /* 触摸设备：交互目标 ≥44px（Apple HIG / Material 一致要求），去掉点击缩放延迟 */
+  @media(hover:none) and (pointer:coarse){
+    .gExit{padding:11px 16px;font-size:14px;min-height:44px}
+    .gEv button{padding:9px 14px;font-size:13px;min-height:44px}
+    .gEv{padding:10px 12px;gap:8px}
+    .gEv audio{height:36px;max-width:170px}
+    .gLamp{padding:12px 14px}
+    .gEv .thumb{width:56px;height:38px}
+    .gEvList{-webkit-overflow-scrolling:touch}
+  }
+  /* 手机竖屏（窄屏）：顶部信息堆叠，波形在上、三灯横排在下方 */
+  @media(max-width:759px) and (orientation:portrait){
+    .gTop{flex-wrap:wrap;gap:8px 14px;padding:10px 12px}
+    .gClock .gT{font-size:24px}
+    .gDbBox .gDb{font-size:34px}
+    .gDbBox .gLbl{display:none}
+    .gStateBox{margin-left:0;align-items:flex-start}
+    .gExit{margin-left:auto}
+    .gMain{flex-direction:column;padding:10px 12px;gap:10px}
+    .gCenter{order:1;min-height:34vh}
+    .gRing{width:min(28vh,210px);height:min(28vh,210px)}
+    .gSide{order:2;width:auto;flex-direction:row;justify-content:space-between;gap:8px}
+    .gLamp{flex:1;justify-content:center;padding:10px 6px}
+    .gLamp b{margin-left:6px}
+    .gInfo{display:none}
+    .gBottom{padding:8px 12px 12px;min-height:112px}
+    .gEv{flex-wrap:wrap}
+    .gEv .an{flex:1 1 100%;order:3;white-space:normal}
+    .gEv audio{order:4;max-width:100%;flex:1}
+  }
+  /* 手机 / 平板横屏（矮屏）：压掉一切纵向占用，事件区收窄 */
+  @media(orientation:landscape) and (max-height:520px){
+    .gTop{padding:6px 12px;gap:12px}
+    .gClock .gT{font-size:20px}
+    .gClock .gD{font-size:10px}
+    .gDbBox .gDb{font-size:28px}
+    .gDbBox .gLbl{display:none}
+    .gState{font-size:13px;padding:1px 9px}
+    .gMain{padding:8px 12px;gap:12px}
+    .gRing{width:min(64vh,190px);height:min(64vh,190px)}
+    .gSide{width:158px;gap:6px}
+    .gLamp{padding:6px 9px}
+    .gInfo{padding:5px 8px;font-size:10px}
+    .gBottom{padding:5px 12px 7px;min-height:0;max-height:34vh}
+    .gEvList{max-height:22vh}
+    .gEv{padding:5px 9px;font-size:11px}
+    .gEv audio{height:24px;max-width:190px}
+  }
+  /* 平板竖屏（宽但高）：两栏保持，事件区给足高度 */
+  @media(min-width:768px) and (orientation:portrait){
+    .gCenter{min-height:44vh}
+    .gRing{width:min(32vh,320px);height:min(32vh,320px)}
+    .gBottom{min-height:200px}
+    .gEvList{max-height:34vh}
+  }
+  /* 刘海屏 / Home 条 / 手势条：四周留安全区，别被系统 UI 吃掉 */
+  @supports(padding:env(safe-area-inset-bottom)){
+    .guard{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);
+      padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+  }
   .tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   /* v2.3.0：顶部毫秒级本地时钟（等宽 + 青色主色 + 毫秒暗一档，窄屏降级） */
   .clock{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:15px;line-height:1;
@@ -671,7 +749,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.17.1</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.18.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1714,7 +1792,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.17.1',APP_BUILD='20261002';
+const APP_VER='2.18.0',APP_BUILD='20261003';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';}catch(e){}
 // ---- 系统监视（需求#4：顶栏 CPU/内存。桌面版经 preload 桥取真实系统值；网页/移动端无权限显示 —） ----
 function sysTick(){
@@ -5449,11 +5527,24 @@ $('asrSaveWav').addEventListener('click',()=>{
   asrSaveWavBlob(asrWavBlob(capSlice(0,ASR_CAP.len)),false);});
 $('asrKeyBtn').addEventListener('click',async()=>{
   if(!window.asrCloud){toast('浏览器模式无云端通道，请用桌面端');return;}
-  const cur=await window.asrCloud.keyStatus().catch(()=>({hasKey:false}));
-  const k=prompt('填入阿里云百炼（DashScope）API Key：\n（保存在本机 userData/asr-config.json，不会写入源码仓库）',cur&&cur.hasKey?'••••••••':'');
-  if(k===null)return;
+  const cfg=$('asrKeyCfg');if(!cfg)return;
+  // ⚠ Electron 渲染进程不支持 window.prompt（会抛 "prompt() is and will not be supported" 并变成
+  //    unhandledrejection 崩溃）。改用内联输入框，桌面端与网页端通用。
+  cfg.style.display=(cfg.style.display==='none'||!cfg.style.display)?'block':'none';
+  if(cfg.style.display!=='none'){
+    try{const cur=await window.asrCloud.keyStatus().catch(()=>({hasKey:false}));
+      const inp=$('asrKeyInput');if(inp)inp.value='';
+      if(cur&&cur.hasKey)asrSetKeyStat('已配置（'+((cur.source==='env')?'环境变量':'本机配置')+'）');
+    }catch(_){}
+  }
+});
+$('asrKeySave').addEventListener('click',async()=>{
+  if(!window.asrCloud){toast('浏览器模式无云端通道，请用桌面端');return;}
+  const k=($('asrKeyInput')||{}).value||'';
+  if(!k){toast('请先填入 API Key');return;}
   const r=await window.asrCloud.setKey(k).catch(e=>({ok:false,message:(e&&e.message)||e}));
-  if(r&&r.ok){toast('已保存 API Key');asrDetect();}else toast('保存失败：'+((r&&r.message)||'未知'));});
+  if(r&&r.ok){toast('已保存 API Key');const c=$('asrKeyCfg');if(c)c.style.display='none';asrDetect();}
+  else toast('保存失败：'+((r&&r.message)||'未知'));});
 $('asrMode').addEventListener('change',()=>{asrDetect();});
 $('asrLang').addEventListener('change',()=>{asrDetect();});
 });
@@ -5771,6 +5862,11 @@ resize();frame();
           <span class="hint">txt / srt / wav</span></div>
         <div class="toolrow"><button class="cap2" id="asrKeyBtn">⚙ 云端设置</button>
           <span id="asrKeyStat" class="hint">—</span></div>
+        <div id="asrKeyCfg" style="display:none">
+          <div class="toolrow"><label>阿里云百炼 API Key</label><input id="asrKeyInput" type="password" placeholder="sk-…（DashScope）" style="flex:1;min-height:40px" autocomplete="off"></div>
+          <div class="toolrow"><button class="cap2" id="asrKeySave">保存 Key</button>
+            <span class="hint">保存在本机 userData/asr-config.json，不写入源码仓库</span></div>
+        </div>
         <div class="hint" style="margin-top:6px">云端模式走阿里云百炼「非实时文件转写」，按段长自动提交（非逐字流式）；本地模式需自备 Vosk 模型，且粤语无官方离线模型，请用云端模式。</div>
       </div>
     </div>
