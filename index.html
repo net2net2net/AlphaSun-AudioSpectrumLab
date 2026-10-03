@@ -791,7 +791,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.23.1</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.23.2</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1834,7 +1834,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.23.1',APP_BUILD='20261003';
+const APP_VER='2.23.2',APP_BUILD='20261003';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';
   // v2.21.0：页脚版本号原为硬编码静态文本（曾停留在 v2.12.0，落后 9 个版本），
   // 逃过了 validate 的「五点版本一致性」校验（该校验只覆盖 APP_VER/appVer span/package/sw/gradle）。
@@ -3284,7 +3284,14 @@ function micDiagReport(){
   const out=[];
   const tState=st=>{try{if(!st)return null;if(st.getTracks){const t=st.getTracks();return t.map(x=>x.kind+':'+x.readyState).join(',')||'no-tracks';}return 'obj';}catch(e){return 'err';}};
   const cState=c=>{try{return c?c.state:null;}catch(e){return 'err';}};
-  const push=(name,st,ctx,active)=>out.push({name,tracks:tState(st),ctxState:cState(ctx),active:!!active});
+  /* v2.23.2 关键修正：active（模块状态）与 live（轨道是否仍在用）必须分开看。
+     「孤儿流」= tracks 仍 live 但模块已停止（如 start() 中途失败留下的流）——
+     它照样占着麦克风！v2.23.1 的诊断只查 active，导致误报「本应用未持有」。*/
+  const push=(name,st,ctx,active)=>{
+    const tracks=tState(st);
+    const live=!!(tracks&&/live/.test(tracks));
+    out.push({name,tracks,ctxState:cState(ctx),active:!!active,live,orphan:live&&!active});
+  };
   try{push('主采集',stream,audioCtx,running);}catch(e){}
   try{push('环境采集',envStream,envCtx,envOn);}catch(e){}
   try{push('值守',alStream,alCtx,alOn);}catch(e){}
@@ -3293,7 +3300,7 @@ function micDiagReport(){
   try{push('二级台录制',(L2.recStream&&L2.recOwnStream?L2.recStream:null),null,L2.recOn);}catch(e){}
   try{push('摄像头',(typeof GUARD!=='undefined'?GUARD.camStream:null),null,!document.getElementById('guardScreen')||document.getElementById('guardScreen').style.display!=='none');}catch(e){}
   // 识别会话（无 getTracks，单独标记）
-  out.push({name:'语音识别会话',tracks:recog?'ALIVE(started?)':'null',ctxState:null,active:!!recog});
+  out.push({name:'语音识别会话',tracks:recog?'ALIVE(started?)':'null',ctxState:null,active:!!recog,live:!!recog,orphan:false});
   return out;
 }
 try{window.__micDiag=micDiagReport;}catch(e){}
@@ -3325,14 +3332,15 @@ function micErrText(e){const n=(e&&e.name)||'';
     // v2.23.1：先诊断是「本应用内部句柄」还是「外部软件」，给出可操作结论（不再让用户猜）
     try{ if(typeof micDiagReport==='function'){
       const rep=micDiagReport();
-      const act=rep.filter(x=>x.active&&x.tracks&&/live/.test(x.tracks)).map(x=>x.name);
-      if(act.length)return '本应用内部仍占用：'+act.join('、')+'。请关闭对应面板后重试；'+
-        '若仍不行请重启应用（诊断见控制台 window.__micDiag()）。';
+      const act=rep.filter(x=>x.live&&/live/.test(x.tracks||'')).map(x=>x.name+(x.orphan?'（残留未释放）':''));
+      if(act.length)return '本应用内部仍占用：'+act.join('、')+'。请先停止对应功能（转写/环境采集/值守/二级台）；'+
+        '若面板已关闭仍报此错，请重启应用（诊断见控制台 window.__micDiag()）。';
       if(rep.some(x=>x.name==='语音识别会话'&&x.active))return '本应用的语音识别会话仍在占用。请停止语音转写后重试；'+
         '若仍不行请重启应用（诊断见控制台 window.__micDiag()）。';
     }}catch(_){}
-    return '已确认本应用未持有麦克风，通常是其它软件（微信/钉钉/Teams/会议/录屏）在使用；'+
-      '请关闭它们或重启电脑再试。';
+    return '已确认本应用未持有麦克风，通常是其它软件（微信/钉钉/Teams/会议/录屏）在使用，或'+
+      'Windows 音频设备被独占/驱动异常；请关闭它们、重启电脑，或在系统「设置→隐私和安全性→麦克风」'+
+      '确认本应用未被禁用；仍不行请重启音频设备或电脑。';
   })();
   if(/Overconstrained/.test(n))return '❌ 设备不支持当前采集参数（已自动降级仍失败）→ 请在顶栏更换输入设备';
   if(/SecurityError/.test(n))return '❌ 安全上下文限制 → 请使用桌面版 EXE，或通过 https/localhost 打开';
@@ -3357,7 +3365,9 @@ async function start(){
       try{releaseGhostMic('main');}catch(_){}
       try{recogStopSession();}catch(_){}
       try{if(typeof l2Release==='function')l2Release();}catch(_){}
-      await new Promise(r=>setTimeout(r,220));   // 等底层音频会话真正释放
+      // v2.23.2：先等上一次的 AudioContext 真正关闭（close() 是异步的），否则新 getUserMedia 仍会撞车
+      try{if(mainCtxCloseP&&mainCtxCloseP.then)await mainCtxCloseP;}catch(_){}
+      await new Promise(r=>setTimeout(r,260));
       stream=await openMic();                    // 重试仍失败则抛出，由外层 catch 统一处理
     }
   audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state!=='running')audioCtx.resume().catch(()=>{});srcNode=audioCtx.createMediaStreamSource(stream);gainNode=audioCtx.createGain();gainNode.gain.value=parseFloat(E.sens.value)||1;
@@ -3398,17 +3408,34 @@ async function start(){
   E.verTxt.textContent='检测中…';E.verDot.style.background='var(--cy)';
   setupASR();if(recog)try{recog.start();asrStartT=performance.now();}catch(_){}resize();frame();analyzeLoop();
 }catch(e){console.error('START_CATCH',e&&e.stack||e);
+  /* v2.23.2 关键修复：启动失败必须释放已占用的设备！
+     若 openMic() 已成功、但后续初始化（Analyser/Worklet/binMap/setupArray/resize…）抛错，
+     旧代码只显示错误、**不释放 stream 与 audioCtx** → 麦克风被本应用的「孤儿流」长期占住
+     （tracks 仍 live、但 running=false）→ 此后每次点开始采集都 NotReadableError，
+     而诊断因只看 active 状态会误判「本应用未持有」。这是「所有采集全错」的又一根因。*/
+  try{releaseMainAcq();}catch(_){}
   // v2.0.0 稳定性：只有真正的媒体类异常才按麦克风故障提示；JS 内部错误（TypeError 等）明确区分，避免误导排查方向
   const micErr=e instanceof DOMException||/NotAllowed|PermissionDenied|NotFound|DevicesNotFound|NotReadable|TrackStart|Overconstrained|SecurityError|AbortError/.test((e&&e.name)||'');
   E.status.className='err';E.status.textContent=micErr?micErrText(e):('⚠️ 内部错误 '+(e&&e.name||'Error')+'：'+(e&&e.message||'')+'（非麦克风问题，详情已记录控制台，请重启应用重试）');
   E.verTxt.textContent='启动失败';E.verDot.style.background='#ff5d6e';E.engineB.textContent='待机';E.capBtn.classList.add('paused');E.capTxt.textContent='开始采集';}}
 // v2.5.0 需求④：信号处理链路图示 —— 采集时逐级点亮，停止时熄灭（纯展示，失败静默）
 function setChain(on){ /* v2.8.0：顶部横排链路图示已移除，空操作保留兼容 */ }
+/* v2.23.2 释放主采集占用的设备（stop 与 start 失败清理共用，幂等）。
+   v2.23.2：ctx.close() 是异步的，返回 Promise；不等待就重新 getUserMedia 会撞上尚未
+   释放的音频会话（NotReadableError）。故记录 Promise 供自愈重试 await。*/
+let mainCtxCloseP=null;
+function releaseMainAcq(){
+  try{if(stream){const t=stream.getTracks();for(let i=0;i<t.length;i++){try{t[i].stop();}catch(_){}}}}catch(_){}
+  try{stream=null;}catch(_){}
+  try{if(audioCtx){try{if(audioCtx.state!=='closed'){const p=audioCtx.close();if(p&&p.catch){mainCtxCloseP=p.catch(()=>{});}}}catch(_){}}}catch(_){}
+  try{audioCtx=null;}catch(_){}
+  try{if(recog)recogStopSession();}catch(_){}
+}
 function stop(){running=false;setChain(false);if(raf)cancelAnimationFrame(raf);
   recogStopSession();   // v2.23.0：真正终止识别会话（置 null），杜绝会话堆积占麦
   // v2.5.0：二级台正借用主流录制时先正常收尾（否则 tracks 被直接掐断，onstop 只能拿到残缺音频）
   if(typeof L2!=='undefined'&&L2&&L2.recOn){try{l2RecToggle().catch(()=>{});}catch(_){}}
-  if(stream)stream.getTracks().forEach(t=>t.stop());if(audioCtx)audioCtx.close();
+  releaseMainAcq();     // v2.23.2：释放主流 + AudioContext（记录 close Promise 供自愈等待）
   E.engine.className='chip';E.engineB.textContent='待机';E.capBtn.classList.add('paused');E.capTxt.textContent='开始采集';
   E.hint.style.opacity='1';E.status.textContent='';E.status.className='';E.levelFill.style.width='0%';
   E.dbMeter.style.width='0%';E.dbPeak.style.left='0%';dbPeakV=0; // v2.8.0：电平表复位
