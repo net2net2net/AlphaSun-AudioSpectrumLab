@@ -201,12 +201,16 @@ function chk(name, ok, detail) {
   await page.click('#gExit');
   await page.waitForTimeout(1500);
 
-  console.log('\n[6.6] 值守日志清空（v2.19.0 新增：日志支持清理）');
+  console.log('\n[6.6] 值守日志清空（v2.24.1：改用应用内确认框，window.confirm 在 Electron 永远返回 false）');
   const logBefore = await page.evaluate(() => { const L = document.getElementById('alertLog'); return L ? L.children.length : -1; });
   await page.click('#alertClrLog').catch(() => { });
   await page.waitForTimeout(500);
+  const askUp = await page.evaluate(() => { const m = document.getElementById('askMask'); return !!(m && m.style.display !== 'none'); });
+  chk('点「清空日志」弹出应用内确认框', askUp, 'askMask 显示=' + askUp);
+  await page.click('#askYes').catch(() => { });
+  await page.waitForTimeout(500);
   const logAfter = await page.evaluate(() => { const L = document.getElementById('alertLog'); return L ? L.children.length : -1; });
-  chk('值守日志清空按钮生效（条目归零、未崩溃）', logAfter === 0, 'before=' + logBefore + ' after=' + logAfter);
+  chk('确认后值守日志清空生效（条目归零、未崩溃）', logAfter === 0, 'before=' + logBefore + ' after=' + logAfter);
 
   const evs = await page.evaluate(() => {
     const box = document.getElementById('gEvList');
