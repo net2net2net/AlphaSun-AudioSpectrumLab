@@ -136,6 +136,21 @@
   #asrMask .asrout{flex:1 1 auto;min-height:140px;overflow-y:auto}
   #asrMask .asrwavebox{flex:none}
   #asrMask .toolrow{flex:none}
+  /* v2.24.0 转写配置区重排：下拉加宽到能完整显示选项（「中文（普通话）」「自动（优先云端）」曾被截断），
+     三个下拉用 2×2 网格整齐排列，复选框单独一行；并显示自动判定的引擎状态。*/
+  #asrMask .asrCfg{display:grid;grid-template-columns:auto minmax(150px,1fr) auto minmax(150px,1fr);
+    gap:9px 10px;align-items:center;flex:none}
+  #asrMask .asrCfg>label{font-size:13px;color:var(--dim);min-width:max-content}
+  #asrMask .asrCfg select{width:100%;min-width:0;padding:7px 9px;font-size:13px}
+  #asrMask .asrChecks{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+    padding-top:2px;border-top:1px solid rgba(255,255,255,.06);margin-top:2px}
+  #asrMask .asrChecks .sw{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--dim)}
+  #asrMask .asrEngNow{grid-column:1/-1;font-size:12px;color:#9fd7ff;display:grid;
+    grid-template-columns:auto minmax(0,1fr);gap:3px 10px;align-items:center;
+    background:rgba(55,224,255,.08);border:1px solid rgba(55,224,255,.22);border-radius:8px;padding:6px 10px}
+  #asrMask .asrEngLbl{white-space:nowrap;color:#7fc7e8}
+  #asrMask .asrEngNow b{color:#eaf6ff;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #asrMask .asrAutoTip{grid-column:1/-1;line-height:1.55}
   #asrMask .toolbody > .hint{flex:none}
   /* ---- v2.17.0 声波警戒值守台（全屏）---- */
   .guard{position:fixed;inset:0;z-index:200;background:radial-gradient(1200px 700px at 50% 0%,#071426 0%,#04070f 60%,#02040a 100%);
@@ -158,19 +173,30 @@
   .gState.warn{color:#ffd76a;background:rgba(120,90,10,.3);border-color:rgba(255,200,80,.55)}
   .gState.alarm{color:#ff8d9b;background:rgba(140,20,40,.35);border-color:rgba(255,90,110,.6);animation:gPulse .6s infinite}
   .gDur{font-size:12px;color:#79a6c8}
+  /* v2.24.0 暂停态：黄色，与 normal 蓝 / warn 黄 / alarm 红 区分 */
+  .gState.paused{background:rgba(150,120,20,.42);border-color:rgba(255,205,90,.7);color:#ffd76a}
   @keyframes gPulse{0%,100%{opacity:1}50%{opacity:.55}}
   .gExit{background:rgba(255,255,255,.06);border:1px solid rgba(120,180,255,.35);color:#cfe8ff;
     border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
   .gExit:hover{background:rgba(90,180,255,.18)}
   .gMain{flex:1;display:flex;gap:16px;padding:14px 18px;min-height:0}
   .gCenter{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-width:0}
+  /* v2.24.0 值守台改版：状态灯 + 统计 + 事件日志合并到「波形左侧」栏，按钮置于左栏顶部 */
+  .gLeft{width:296px;flex:none;display:flex;flex-direction:column;gap:8px;min-height:0}
+  .gLeftHead{display:flex;align-items:center;gap:6px}
+  .gLeftHead .cap2{flex:1;min-height:34px;padding:5px 6px;font-size:11px}
+  .gLeftTitle{font-size:12px;color:#9fd7ff;display:flex;align-items:center;gap:6px}
+  .gLeftTitle::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(90,170,255,.35),transparent)}
+  .gLeft .gLamp{padding:6px 9px}
+  .gLeft .gLamp span{font-size:12px}
+  .gLeft .gInfo{padding:6px 9px;font-size:10.5px}
+  .gLeft .gEvList{flex:1;min-height:0;max-height:none}
   .gWave{position:absolute;inset:0;width:100%;height:100%;border-radius:12px;background:rgba(0,0,0,.28);
     border:1px solid rgba(90,170,255,.16)}
-  .gRing{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:150px;height:150px;z-index:3;pointer-events:none;border-radius:50%;
+  .gRing{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:132px;height:132px;z-index:3;pointer-events:none;border-radius:50%;
     background:radial-gradient(circle at 50% 50%,rgba(6,16,30,.92),rgba(4,10,20,.6));box-shadow:0 0 40px rgba(40,140,220,.18) inset,0 0 24px rgba(40,140,220,.12);transition:box-shadow .2s}
-  .gLevel{position:absolute;top:10px;left:12px;width:210px;height:62px;z-index:3;pointer-events:none;
+  .gLevel{position:absolute;top:8px;left:10px;width:186px;height:56px;z-index:3;pointer-events:none;
     border-radius:10px;background:rgba(2,8,18,.5);border:1px solid rgba(90,170,255,.18);box-shadow:0 4px 16px rgba(0,20,40,.35)}
-  .gSide{width:190px;display:flex;flex-direction:column;gap:10px;justify-content:center}
   .gLamp{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;
     border:1px solid rgba(120,160,200,.18);background:rgba(255,255,255,.03);opacity:.42;transition:.15s}
   .gLamp i{width:16px;height:16px;border-radius:50%;background:#2a3a4a;flex:none;box-shadow:none}
@@ -185,9 +211,8 @@
   .gInfo{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#79a6c8;
     border:1px solid rgba(120,160,200,.18);border-radius:10px;padding:8px 10px;background:rgba(255,255,255,.03)}
   .gInfo b{float:right;color:#bfe6ff}
-  .gBottom{border-top:1px solid rgba(90,170,255,.18);padding:8px 18px 12px;display:flex;flex-direction:column;min-height:150px}
   .gEvHead{display:flex;align-items:center;gap:10px;font-size:13px;color:#9fd7ff;margin-bottom:6px}
-  .gEvList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:26vh}
+  .gEvList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;min-height:0}
   .gEv{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:9px;font-size:12px;
     background:rgba(255,255,255,.04);border-left:3px solid #4db6ff}
   .gEv.warn{border-left-color:#ffc94d}
@@ -261,12 +286,13 @@
     .gExit{margin-left:auto}
     .gMain{flex-direction:column;padding:10px 12px;gap:10px}
     .gCenter{order:1;min-height:34vh}
-    .gRing{width:min(28vh,210px);height:min(28vh,210px)}
-    .gSide{order:2;width:auto;flex-direction:row;justify-content:space-between;gap:8px}
+    .gRing{width:min(24vh,132px);height:min(24vh,132px)}
+    .gLeft{order:2;width:auto;flex-direction:row;flex-wrap:wrap;gap:8px}
+    .gLeft .gEvList{flex:1 1 100%;max-height:22vh}
+    .gLeftHead{flex:1 1 100%}
     .gLamp{flex:1;justify-content:center;padding:10px 6px}
     .gLamp b{margin-left:6px}
-    .gInfo{display:none}
-    .gBottom{padding:8px 12px 12px;min-height:112px}
+    .gLeft .gInfo{display:none}
     .gEv{flex-wrap:wrap}
     .gEv .an{flex:1 1 100%;order:3;white-space:normal}
     .gEv audio{order:4;max-width:100%;flex:1}
@@ -280,21 +306,18 @@
     .gDbBox .gLbl{display:none}
     .gState{font-size:13px;padding:1px 9px}
     .gMain{padding:8px 12px;gap:12px}
-    .gRing{width:min(64vh,190px);height:min(64vh,190px)}
-    .gSide{width:158px;gap:6px}
+    .gRing{width:min(40vh,124px);height:min(40vh,124px)}
+    .gLeft{width:210px;gap:6px}
+    .gLeft .gEvList{max-height:16vh}
     .gLamp{padding:6px 9px}
     .gInfo{padding:5px 8px;font-size:10px}
-    .gBottom{padding:5px 12px 7px;min-height:0;max-height:34vh}
-    .gEvList{max-height:22vh}
     .gEv{padding:5px 9px;font-size:11px}
     .gEv audio{height:24px;max-width:190px}
   }
   /* 平板竖屏（宽但高）：两栏保持，事件区给足高度 */
   @media(min-width:768px) and (orientation:portrait){
     .gCenter{min-height:44vh}
-    .gRing{width:min(32vh,320px);height:min(32vh,320px)}
-    .gBottom{min-height:200px}
-    .gEvList{max-height:34vh}
+    .gRing{width:min(26vh,150px);height:min(26vh,150px)}
   }
   /* 刘海屏 / Home 条 / 手势条：四周留安全区，别被系统 UI 吃掉 */
   @supports(padding:env(safe-area-inset-bottom)){
@@ -791,7 +814,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.23.2</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.24.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1834,7 +1857,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.23.2',APP_BUILD='20261003';
+const APP_VER='2.24.0',APP_BUILD='20261003';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';
   // v2.21.0：页脚版本号原为硬编码静态文本（曾停留在 v2.12.0，落后 9 个版本），
   // 逃过了 validate 的「五点版本一致性」校验（该校验只覆盖 APP_VER/appVer span/package/sw/gradle）。
@@ -4951,7 +4974,7 @@ const GUARD={
   ev:null,evs:[],pcm:[],pcmLen:0,
   wave:new Float32Array(600),wpos:0,raf:null,
   camStream:null,camRec:null,camChunks:[],camBusy:false,
-  relHeld:0,lastDb:-1e9,seq:0,
+  relHeld:0,lastDb:-1e9,seq:0,paused:false,pauseT0:0,pauseAcc:0,
 };
 const GUARD_LV={normal:{t:'正常',cls:'normal'},warn:{t:'预警',cls:'warn'},alarm:{t:'告警',cls:'alarm'}};
 function alLog(m,c){toolLog('alertLog',m,c);}
@@ -5061,10 +5084,11 @@ function alPaintTop(){
   const T=$('gTime');if(T)T.textContent=p(n.getHours())+':'+p(n.getMinutes())+':'+p(n.getSeconds());
   const D=$('gDate');if(D)D.textContent=n.getFullYear()+'-'+p(n.getMonth()+1)+'-'+p(n.getDate())+' 周'+'日一二三四五六'[n.getDay()];
   const db=$('gDb');if(db)db.textContent=GUARD.lastDb<=-1e8?'--':GUARD.lastDb.toFixed(1);
-  const dur=$('gDur');if(dur&&GUARD.t0){const el=((Date.now()-GUARD.t0)/1000)|0;
+  const dur=$('gDur');if(dur&&GUARD.t0){const el=(((Date.now()-GUARD.t0)-(GUARD.paused?(Date.now()-GUARD.pauseT0):0))/1000)|0;
     dur.textContent=p(el/3600)+':'+p((el%3600)/60)+':'+p(el%60);}
   const st=$('gState');if(st){const L=GUARD_LV[GUARD.state]||GUARD_LV.normal;
-    st.textContent=GUARD.state==='eval'?'本底评估中':L.t;st.className='gState '+(GUARD.state==='eval'?'normal':L.cls);}
+    st.textContent=GUARD.paused?'已暂停':(GUARD.state==='eval'?'本底评估中':L.t);
+    st.className='gState '+(GUARD.paused?'paused':(GUARD.state==='eval'?'normal':L.cls));}
   const lb=$('gDbLbl');if(lb)lb.textContent=GUARD.state==='eval'?('评估中 '+GUARD.evalBuf.length+' 帧')
     :('本底 '+GUARD.floor.toFixed(0)+' · 预警 '+GUARD.thrWarn.toFixed(0)+' · 告警 '+GUARD.thrAlarm.toFixed(0));
   const fl=$('gFloor');if(fl)fl.textContent=GUARD.floor.toFixed(1)+' dB';
@@ -5273,6 +5297,13 @@ function alTick(){
   let db=alNowDb();if(db<=-1e8)return;
   GUARD.lastDb=db;if(db>alPeak)alPeak=db;
   const nw=$('alertNow');if(nw)nw.textContent='当前 '+db.toFixed(1)+' dB';
+  /* v2.24.0 暂停：保持麦克风与波形实时刷新（不释放设备，便于秒恢复），
+     但暂停阈值判定、事件统计与录音归档。恢复时若正处于事件中，重新累计回落计时。*/
+  if(GUARD.paused){
+    if(GUARD.ev)GUARD.relHeld=0;             // 恢复后重新累计回落，避免暂停时长被算进事件
+    alPaintTop();
+    return;
+  }
   // 本底评估阶段
   if(GUARD.state==='eval'){
     GUARD.evalBuf.push(db);
@@ -5359,6 +5390,8 @@ async function alBegin(){
 async function alStopAll(reason){
   if(alWatch){clearInterval(alWatch);alWatch=null;}document.body.classList.remove('alarm');
   if(GUARD.ev)await alEvFinish();
+  GUARD.paused=false;                                   // v2.24.0：退出时复位暂停态
+  const pb=$('gPause');if(pb)pb.textContent='⏸ 暂停';
   if(GUARD.raf){cancelAnimationFrame(GUARD.raf);GUARD.raf=null;}
   try{if(GUARD.node){GUARD.node.port.onmessage=null;GUARD.node.disconnect();}}catch(_){}
   try{if(GUARD.mute)GUARD.mute.disconnect();}catch(_){}
@@ -5393,6 +5426,25 @@ function alExpAll(){
 }
 $('alertStart').addEventListener('click',alBegin);
 $('alertStop').addEventListener('click',()=>alStopAll('手动'));
+/* v2.24.0 值守暂停/恢复：保持麦克风与波形运行（不释放设备，秒恢复），
+   仅暂停阈值判定、事件统计与录音归档；计时与回落计数一并冻结。
+   若暂停期间正处于事件中，结束时先归档该事件再暂停，避免出现「跨暂停的畸形长事件」。*/
+async function alPauseToggle(){
+  if(!alOn){toast('值守未在运行');return;}
+  if(!GUARD.paused){
+    if(GUARD.ev){alLog('暂停：当前事件 #'+GUARD.ev.id+' 归档后再暂停','w');await alEvFinish();}
+    GUARD.paused=true;GUARD.pauseT0=Date.now();
+    const b=$('gPause');if(b)b.textContent='▶ 继续';
+    alLog('已暂停值守（麦克风保持开启，波形继续）','w');
+    alPaintTop();
+  }else{
+    GUARD.paused=false;
+    const b=$('gPause');if(b)b.textContent='⏸ 暂停';
+    alLog('已恢复值守','g');
+    alPaintTop();
+  }
+}
+$('gPause').addEventListener('click',()=>{alPauseToggle().catch(()=>{});});
 $('gExit').addEventListener('click',()=>alStopAll('退出值守台'));
 $('gEvExpAll').addEventListener('click',alExpAll);
 $('gEvClear').addEventListener('click',()=>{if(!GUARD.evs.length){toast('列表已空');return;}
@@ -5410,7 +5462,9 @@ $('ntTest').addEventListener('click',async()=>{
   toast('测试发送：'+okN+'/'+rs.length+' 成功');
   for(const x of rs)alLog('推送 '+x.type+'：'+(x.ok?'成功':'失败 '+(x.message||'')),x.ok?'g':'w');
 });
-addEventListener('keydown',e=>{if(e.key==='Escape'&&$('guardScreen')&&$('guardScreen').style.display!=='none')alStopAll('Esc 退出');});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('guardScreen')&&$('guardScreen').style.display!=='none')alStopAll('Esc 退出');
+  // v2.24.0：P 键 = 暂停/继续值守（Esc 仍是退出）
+  if((e.key==='p'||e.key==='P')&&$('guardScreen')&&$('guardScreen').style.display!=='none'&&!/^(INPUT|TEXTAREA|SELECT)$/.test((e.target&&e.target.tagName)||'')){e.preventDefault();alPauseToggle().catch(()=>{});}});
 $('alertExpLog').addEventListener('click',()=>{const L=$('alertLog');if(!L||!L.children.length){toast('暂无值守日志');return;}
   let t='AlphaSun 声波警戒值守日志\n生成时间 '+new Date().toLocaleString()+'\n\n';for(const c of L.children)t+=c.textContent+'\n';
   l2Dl(new Blob([t],{type:'text/plain'}),'alert_log_'+toolTs()+'.txt');});
@@ -5449,13 +5503,23 @@ function asrWebLang(){return ({zh:'zh-CN',yue:'yue-Hant-HK',en:'en-US'})[asrLang
 function asrSetEng(t){const e=$('asrEng');if(e)e.textContent=t;}
 function asrSetKeyStat(t){const e=$('asrKeyStat');if(e)e.textContent=t;}
 function asrPaintEng(){
-  const auto=($('asrMode')&&$('asrMode').value)==='auto';
+  const mode=($('asrMode')&&$('asrMode').value)||'auto';
+  const auto=mode==='auto';
   const pre=auto?'自动 · ':'';
-  if(asrEngine==='dash')asrSetEng(pre+'引擎：云端 · 阿里云 DashScope');
-  else if(asrEngine==='dash-nokey')asrSetEng(pre+'引擎：云端 · 未配置 API Key');
-  else if(asrEngine==='vosk')asrSetEng(pre+'引擎：本地 · Vosk 离线');
-  else if(asrEngine==='web')asrSetEng(pre+'引擎：Web Speech（浏览器在线）');
-  else asrSetEng(pre+'引擎：不支持');
+  let txt='不支持';
+  if(asrEngine==='dash')txt=pre+'引擎：云端 · 阿里云 DashScope';
+  else if(asrEngine==='dash-nokey')txt=pre+'引擎：云端 · 未配置 API Key';
+  else if(asrEngine==='vosk')txt=pre+'引擎：本地 · Vosk 离线';
+  else if(asrEngine==='web')txt=pre+'引擎：Web Speech（浏览器在线）';
+  else txt=pre+'引擎：不支持';
+  asrSetEng(txt);
+  // v2.24.0：把「当前实际引擎」显式画在配置区（不再只藏在标题徽标里）
+  const now=$('asrEngNowTxt');if(now)now.textContent=txt.replace(/^.*引擎：/,'');
+  const tip=$('asrAutoTip');
+  if(tip)tip.textContent=auto?'（自动模式：云端不可用时自动降级，云端恢复后自动升级）'
+    :(mode==='cloud'?'（云端模式：需联网 + 已配置 API Key）':'（本地模式：离线 Vosk，粤语无官方模型）');
+  const sh=$('asrSegHint');
+  if(sh)sh.textContent=(asrEngine==='dash'||asrEngine==='dash-nokey')?'云端按段提交（非逐字流式）':'按段提交，段长越长越省调用';
 }
 /* ---------- 采集器：云端/本地共用，累积 PCM 供波形、WAV、Vosk 使用 ---------- */
 const ASR_CAP={ctx:null,stream:null,src:null,proc:null,chunks:[],len:0,sr:16000,segBase:0};
@@ -5583,8 +5647,12 @@ async function asrCloudSubmit(f32,startMs){
   try{
     r=await window.asrCloud.transcribe({wavBase64:ab2b64(await blob.arrayBuffer()),lang:asrLangCode()});
   }catch(e){diagAdd('error','云端转写调用异常：'+((e&&e.message)||e));
-    $('asrStat').textContent='⚠️ 云端转写异常：'+((e&&e.message)||e);return;}
+    $('asrStat').textContent='⚠️ 云端转写异常：'+((e&&e.message)||e);
+    asrCloudFail++;asrCloudDown=asrCloudFail>=2;   // v2.24.0：连续 2 次失败即判定云端不可用
+    if(asrCloudDown)asrAutoTick();                   // 立即触发降级，别让实时转写哑掉
+    return;}
   if(r&&r.ok){
+    asrCloudFail=0;                                  // v2.24.0：成功即清零（云端恢复可自动升级）
     const ss=r.sentences||[],t=(r.text||'').trim();
     const base=startMs||0;
     for(const x of ss)asrSents.push({text:x.text||'',s:base+(x.begin_time||0),e:base+(x.end_time||0)});
@@ -5594,7 +5662,9 @@ async function asrCloudSubmit(f32,startMs){
     const msg=(r&&r.message)||'未知错误';
     diagAdd('error','云端转写失败：'+msg);
     $('asrStat').textContent='⚠️ 云端转写失败：'+msg;
-    toast('⚠️ 云端转写失败，详见状态栏');
+    asrCloudFail++;asrCloudDown=asrCloudFail>=2;     // v2.24.0
+    if(asrCloudDown)asrAutoTick();
+    toast('⚠️ 云端转写失败，'+(asrCloudDown?'正在降级到本地引擎':'将重试'));
   }
 }
 async function asrMaybeSubmit(){
@@ -5625,9 +5695,30 @@ async function asrProbeOffline(lang){
     catch(e){diagAdd('warn','Vosk 运行时加载失败：'+((e&&e.message)||e));return false;}}
   return !!(window.Vosk&&window.Vosk.createModel);
 }
+/* v2.24.0 云端健康状态：auto 模式据此可靠降级/升级。
+   asrCloudFail —— 连续云端失败次数（真实转写结果作健康信号，ground truth）
+   asrCloudDown —— 云端被判定不可用（网络断/Key 失效），降级后仍周期性重探以便自动升级
+   asrPingAt    —— 上次探测时间戳，避免频繁打网 */
+let asrCloudFail=0,asrCloudDown=false,asrPingAt=0;
+async function asrCloudPing(){
+  if(!window.asrCloud||typeof window.asrCloud.ping!=='function')return null;  // 老 preload 无 ping
+  try{const r=await window.asrCloud.ping();return r&&r.ok?true:(r||{ok:false});}catch(e){return {ok:false,error:'NET',message:(e&&e.message)||e};}
+}
 async function asrBestEngine(){
-  if(window.asrCloud){let st={hasKey:false};try{st=await window.asrCloud.keyStatus();}catch(_){}
-    if(st&&st.hasKey)return 'dash';}
+  // 云端：必须有 Key **且** 真实可达（v2.24.0：不再只看 hasKey，否则网络一断就不降级）
+  if(window.asrCloud&&!asrCloudDown){
+    let st={hasKey:false};try{st=await window.asrCloud.keyStatus();}catch(_){}
+    if(st&&st.hasKey){
+      const now=Date.now();
+      if(now-asrPingAt>8000){                       // 最多每 8s 探一次，避免频繁打网
+        asrPingAt=now;
+        const pg=await asrCloudPing();
+        if(pg===false){asrCloudDown=true;diagAdd('warn','云端探测不可用，转写将降级到本地/浏览器引擎');}
+        else if(pg&&pg.ok===false&&pg.error==='BAD_KEY'){asrCloudDown=true;diagAdd('error','API Key 无效，已降级');}
+      }
+      if(!asrCloudDown)return 'dash';
+    }
+  }
   if(asrVosk&&asrVosk.model)return 'vosk';
   if(await asrProbeOffline(asrLangCode()))return 'vosk';
   if(asrSR())return 'web';
@@ -5635,6 +5726,11 @@ async function asrBestEngine(){
 }
 async function asrAutoTick(){
   if(!asrOn)return;
+  // v2.24.0：处于降级态时，周期性重探云端；探通则清除标记 → 下面的分支自动升级回云端
+  if(asrCloudDown){
+    const pg=await asrCloudPing();
+    if(pg===true){asrCloudDown=false;asrCloudFail=0;diagAdd('info','云端已恢复，自动升级回云端转写');}
+  }
   const want=await asrBestEngine();
   if(want===asrEngine)return;
   if(want==='dash'){
@@ -5758,7 +5854,7 @@ async function asrBegin(){
   $('asrStart').disabled=true;$('asrStop').disabled=false;
   await asrDetect();
   asrStartEngine();
-  if(($('asrMode')&&$('asrMode').value)==='auto'){asrAutoTimer=setInterval(asrAutoTick,12000);}
+  if(($('asrMode')&&$('asrMode').value)==='auto'){asrCloudFail=0;asrCloudDown=false;asrPingAt=0;asrAutoTimer=setInterval(asrAutoTick,6000);}
 }
 async function asrStop(){
   if(asrAutoTimer){clearInterval(asrAutoTimer);asrAutoTimer=null;}
@@ -6028,28 +6124,29 @@ resize();frame();
         <span id="gDbLbl" class="gLbl">本底评估中…</span></div>
       <div class="gStateBox"><span id="gState" class="gState">评估中</span>
         <span id="gDur" class="gDur">00:00:00</span></div>
+      <button class="gExit" id="gPause" title="暂停/继续值守（保持麦克风开启，暂停判定与录音）">⏸ 暂停</button>
       <button class="gExit" id="gExit">退出值守 Esc</button>
     </div>
     <div class="gMain">
-      <div class="gCenter">
-        <canvas id="gWave" class="gWave"></canvas>
-        <canvas id="gLevel" class="gLevel"></canvas>
-        <canvas id="gRing" class="gRing"></canvas>
-      </div>
-      <div class="gSide">
+      <div class="gLeft">
+        <div class="gLeftHead">
+          <button class="cap2" id="gEvExpAll" title="导出全部事件为 txt/csv">导出全部</button>
+          <button class="cap2" id="gEvClear" title="清空事件列表">清空列表</button>
+        </div>
+        <div class="gLeftTitle">警戒状态</div>
         <div class="gLamp" id="gLampAlarm" data-lv="alarm"><i></i><span>告警</span><b id="gLampAlarmTxt">—</b></div>
         <div class="gLamp" id="gLampWarn" data-lv="warn"><i></i><span>预警</span><b id="gLampWarnTxt">—</b></div>
         <div class="gLamp on" id="gLampNormal" data-lv="normal"><i></i><span>正常</span><b id="gLampNormalTxt">—</b></div>
         <div class="gInfo"><div>本底<b id="gFloor">—</b></div><div>峰值<b id="gPeak">—</b></div>
           <div>事件<b id="gEvNum">0</b></div></div>
+        <div class="gLeftTitle">事件日志</div>
+        <div class="gEvList" id="gEvList"></div>
       </div>
-    </div>
-    <div class="gBottom">
-      <div class="gEvHead"><span>事件记录</span>
-        <button class="cap2" id="gEvExpAll">导出全部</button>
-        <button class="cap2" id="gEvClear">清空列表</button>
-        <span class="hint" id="gEvHint">每条事件含：起止时间 · 音频分析 · 录音回放 · 告警图像/视频</span></div>
-      <div class="gEvList" id="gEvList"></div>
+      <div class="gCenter">
+        <canvas id="gWave" class="gWave"></canvas>
+        <canvas id="gLevel" class="gLevel"></canvas>
+        <canvas id="gRing" class="gRing"></canvas>
+      </div>
     </div>
     <div class="gMedia" id="gMedia" style="display:none">
       <div class="gMediaBox">
@@ -6113,16 +6210,23 @@ resize();frame();
       <div class="toolhead"><span class="toolttl">🎙️ 语音转写 <span class="badge2" id="asrEng">引擎：检测中</span></span>
         <button class="toolx" id="asrClose">✕</button></div>
       <div class="toolbody">
-        <div class="toolrow"><label>语言</label>
+        <!-- v2.24.0：配置区重排为 2×2 网格，下拉加宽到能完整显示选项；新增「当前实际引擎」实时提示 -->
+        <div class="asrCfg">
+          <label for="asrLang">语言</label>
           <select id="asrLang"><option value="zh" selected>中文（普通话）</option><option value="yue">中文（粤语）</option><option value="en">English</option></select>
-          <label>模式</label>
+          <label for="asrMode">模式</label>
           <select id="asrMode"><option value="auto" selected>自动（优先云端）</option><option value="cloud">云端（联网 · 阿里云）</option><option value="local">本地（离线 · Vosk）</option></select>
-        </div>
-        <div class="toolrow"><label class="sw"><input id="asrInt" type="checkbox" checked> 实时中间结果</label>
-          <label class="sw"><input id="asrAutoSeg" type="checkbox" checked> 分段自动转写</label>
-          <label>段长</label>
+          <label for="asrSeg">分段长</label>
           <select id="asrSeg"><option value="20">20 秒</option><option value="30" selected>30 秒</option><option value="60">60 秒</option></select>
-          <label class="sw"><input id="asrKeepWav" type="checkbox" checked> 停止时保存原始录音</label></div>
+          <span class="hint" id="asrSegHint">云端按段提交（非逐字流式）</span>
+          <div class="asrChecks">
+            <label class="sw"><input id="asrInt" type="checkbox" checked> 实时中间结果</label>
+            <label class="sw"><input id="asrAutoSeg" type="checkbox" checked> 分段自动转写</label>
+            <label class="sw"><input id="asrKeepWav" type="checkbox" checked> 停止时保存原始录音</label>
+          </div>
+          <div class="asrEngNow"><span class="asrEngLbl">当前实际引擎</span><b id="asrEngNowTxt">检测中…</b><span class="hint" id="asrAutoTip">（自动模式会随网络/云端可用性自动升降级）</span></div>
+        </div>
+
         <div class="asrwavebox">
           <canvas id="asrWave" class="asrwave"></canvas>
           <div class="asrwavemeta"><span id="asrTimer">00:00</span><span id="asrLvl">静音</span></div>
