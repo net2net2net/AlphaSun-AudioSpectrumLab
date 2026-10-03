@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* v2.17.0 录音链路 · 真机冒烟（npm run guardsmoke）
- * 覆盖两条录音主链路：① 声波警戒值守台  ② 会议语音转写
+ * 覆盖两条录音主链路：① 声波警戒值守台  ② 语音转写
  * （两者曾共用 ScriptProcessorNode，在本机 Electron 28 下都会让渲染进程崩溃，故一起守住）
  *
  * 为什么需要它：qa-gate 第 9 组只能证明"值守台的 DOM 长齐了"，证明不了
@@ -51,6 +51,9 @@ function chk(name, ok, detail) {
   page.on('crash', () => errs.push('*** RENDERER CRASHED ***'));
   const cerr = [];
   page.on('console', m => { if (m.type() === 'error') cerr.push(m.text()); });
+  const cerr404 = [];
+  page.on('response', r => { if (r.status() === 404) cerr404.push(r.url()); });
+  page.on('dialog', async d => { try { await d.accept(); } catch (_) { } });   // 自动确认（日志清空等 confirm，接受以真正测到清空）
 
   await page.waitForTimeout(1500);
 
@@ -105,7 +108,7 @@ function chk(name, ok, detail) {
       lampNormal: g('gLampNormal') ? g('gLampNormal').classList.contains('on') : false,
       lampWarn: g('gLampWarn') ? g('gLampWarn').classList.contains('on') : false,
       lampAlarm: g('gLampAlarm') ? g('gLampAlarm').classList.contains('on') : false,
-      wave: cv('gWave'), ring: cv('gRing'),
+      wave: cv('gWave'), ring: cv('gRing'), level: cv('gLevel'),
       time1: (g('gTime') || {}).textContent,
     };
   });
@@ -121,6 +124,7 @@ function chk(name, ok, detail) {
     'state=' + ev.state + ' normal=' + ev.lampNormal + ' warn=' + ev.lampWarn + ' alarm=' + ev.lampAlarm);
   chk('波形与环形画布在值守中已有尺寸', ev.wave.w > 0 && ev.ring.w > 0,
     'wave=' + JSON.stringify(ev.wave) + ' ring=' + JSON.stringify(ev.ring));
+  chk('左上电平表画布已渲染（v2.19.0 缩小不遮挡）', ev.level.w > 0 && ev.level.h > 0, 'gLevel=' + JSON.stringify(ev.level));
 
   console.log('\n[5] 顶部时钟在走');
   await page.waitForTimeout(1500);
@@ -159,10 +163,20 @@ function chk(name, ok, detail) {
   const during = await page.evaluate(() => ({
     state: (document.getElementById('gState') || {}).textContent,
     shown: document.getElementById('guardScreen').style.display !== 'none',
+    ringShadow: getComputedStyle(document.getElementById('gRing')).boxShadow,
   }));
   chk('手动阈值下立即进入告警态', during.shown && during.state === '告警', 'state=' + during.state);
+  chk('告警时经典环谱整环变红（boxShadow 已着色）', during.shown && during.state === '告警' && !!during.ringShadow && during.ringShadow !== 'none',
+    'ringShadow=' + (during.ringShadow || '').slice(0, 60));
   await page.click('#gExit');
   await page.waitForTimeout(1500);
+
+  console.log('\n[6.6] 值守日志清空（v2.19.0 新增：日志支持清理）');
+  const logBefore = await page.evaluate(() => { const L = document.getElementById('alertLog'); return L ? L.children.length : -1; });
+  await page.click('#alertClrLog').catch(() => { });
+  await page.waitForTimeout(500);
+  const logAfter = await page.evaluate(() => { const L = document.getElementById('alertLog'); return L ? L.children.length : -1; });
+  chk('值守日志清空按钮生效（条目归零、未崩溃）', logAfter === 0, 'before=' + logBefore + ' after=' + logAfter);
 
   const evs = await page.evaluate(() => {
     const box = document.getElementById('gEvList');
@@ -182,13 +196,18 @@ function chk(name, ok, detail) {
     '含 audio=' + evs.withAudio + '/' + evs.rows + ' 含导出=' + evs.withBtn + '/' + evs.rows);
   if (evs.sample) console.log('     事件样例：' + evs.sample);
 
+  console.log('\n[6.7] 媒体预览灯箱（v2.19.0 新增：拍照/录像回放支持旋转）');
+  const media = await page.evaluate(() => ['gMedia', 'gMediaImg', 'gMediaVid', 'gMediaX', 'gRotL', 'gRot0', 'gRotR']
+    .filter(id => !!document.getElementById(id)).length);
+  chk('媒体预览灯箱 DOM 齐备（容器/图片/视频/关闭/左转/复位/右转）', media === 7, 'found=' + media + '/7');
+
   console.log('\n[7] 会议转写录音链路（同属 ScriptProcessor 事故面，防回归）');
   await page.click('#alertClose');           // 先关掉值守面板，否则它会挡住后续点击
   await page.waitForTimeout(300);
   await page.click('#toolsBtn');
   await page.waitForTimeout(200);
   await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('#toolsMenu button[data-tool]')).find(x => x.dataset.tool === '会议语音转写');
+    const b = Array.from(document.querySelectorAll('#toolsMenu button[data-tool]')).find(x => x.dataset.tool === '语音转写');
     if (b) b.click();
   });
   await page.waitForTimeout(300);
@@ -206,7 +225,11 @@ function chk(name, ok, detail) {
 
   console.log('\n[8] 全程零错误');
   chk('无 pageerror / 崩溃', errs.length === 0, errs.join(' | ').slice(0, 300));
-  chk('无 console.error', cerr.length === 0, cerr.join(' | ').slice(0, 300));
+  // 过滤可选离线资源 404（VOSK 42MB 模型未随包发布，属预期，非 JS 崩溃）——与 audio-tools-smoke 一致
+  const cerrJs = cerr.filter(t => !/Failed to load resource|ERR_FILE_NOT_FOUND|net::ERR/.test(t));
+  if (cerr.length !== cerrJs.length)
+    console.log('  · 另有 ' + (cerr.length - cerrJs.length) + ' 条可选资源 404（VOSK 离线模型未捆绑等）：' + (cerr404.slice(0, 3).join(' , ') || '（见上方）'));
+  chk('无 console.error（JS 类）', cerrJs.length === 0, cerrJs.join(' | ').slice(0, 300));
 
   await app.close();
   const pass = results.filter(r => r.ok).length, fail = results.length - pass;
