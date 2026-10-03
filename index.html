@@ -676,11 +676,15 @@
 /* ===== v2.8.0：DSP 处理链竖排指示器（声波采集→信号预处理→特征提取→分类解码→后处理输出）===== */
 /* 按实时使用情况点亮对应环节；节点间连线有自上而下流动光点，表示数据流向下一环节 */
 .pipeline{position:absolute;left:10px;top:10px;z-index:5;display:flex;flex-direction:column;align-items:center;
-  background:rgba(8,12,24,.42);border:1px solid rgba(120,150,220,.18);border-radius:12px;padding:10px 7px;backdrop-filter:blur(4px);pointer-events:none}
-.pl-node{display:flex;flex-direction:column;align-items:center;gap:3px;opacity:.38;filter:grayscale(.9);transition:opacity .35s,filter .35s}
+  background:rgba(8,12,24,.42);border:1px solid rgba(120,150,220,.18);border-radius:12px;padding:10px 7px;backdrop-filter:blur(4px);pointer-events:none;
+  /* v2.21.0：容器按最长标签自适应宽度，避免竖排标签被挤成两行重叠（曾因 nowrap 文字溢出） */
+  width:max-content;max-width:76px}
+.pl-node{display:flex;flex-direction:column;align-items:center;gap:3px;opacity:.38;filter:grayscale(.9);transition:opacity .35s,filter .35s;
+  max-width:100%}
 .pl-node .pl-ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;
   background:rgba(20,28,44,.7);border:1px solid rgba(120,150,220,.3);transition:border-color .35s,box-shadow .35s}
-.pl-node .pl-tx{font-size:9.5px;color:var(--dim);letter-spacing:.5px;white-space:nowrap}
+.pl-node .pl-tx{font-size:9.5px;color:var(--dim);letter-spacing:.2px;white-space:nowrap;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;text-align:center}
 .pl-node.on{opacity:1;filter:none}
 .pl-node.on .pl-ic{border-color:var(--cy);box-shadow:0 0 12px rgba(55,224,255,.35)}
 .pl-node.on .pl-tx{color:var(--cy)}
@@ -787,7 +791,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.21.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.22.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1066,7 +1070,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
     </div>
   </div>
 
-  <footer>AlphaSun Audio Spectrum Lab v2.12.0 · 作者 阳光 net2net2net（VX：net2net）· 主要组件：Web Audio API / Canvas / Electron / Capacitor
+  <footer>AlphaSun Audio Spectrum Lab <span id="footVer">v—</span> · 作者 阳光 net2net2net（VX：net2net）· 主要组件：Web Audio API / Canvas / Electron / Capacitor
     <button class="chip" id="helpBtn" title="查看完整说明与免责声明" style="cursor:pointer;color:var(--cy);border:1px solid rgba(55,224,255,.4)">说明</button>
   </footer>
 
@@ -1830,8 +1834,13 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.21.0',APP_BUILD='20261003';
-try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';}catch(e){}
+const APP_VER='2.22.0',APP_BUILD='20261003';
+try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';
+  // v2.21.0：页脚版本号原为硬编码静态文本（曾停留在 v2.12.0，落后 9 个版本），
+  // 逃过了 validate 的「五点版本一致性」校验（该校验只覆盖 APP_VER/appVer span/package/sw/gradle）。
+  // 改为与 appVer 共用 APP_VER 填充 → bump-version.js 改版本时页脚自动跟随，永不再漏。
+  const fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VER;
+}catch(e){}
 // ---- 系统监视（需求#4：顶栏 CPU/内存。桌面版经 preload 桥取真实系统值；网页/移动端无权限显示 —） ----
 function sysTick(){
   try{
