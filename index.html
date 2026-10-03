@@ -84,7 +84,7 @@
     font-size:13.5px;box-shadow:0 14px 40px rgba(0,0,0,.5);opacity:0;pointer-events:none;
     transition:opacity .2s,transform .2s;max-width:82vw;text-align:center}
   .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-  /* v2.13.x：音频工具集三个可用工具面板（环境音频采集 / 声波警戒值守 / 会议语音转写） */
+  /* v2.13.x：音频工具集三个可用工具面板（环境音频采集 / 声波警戒值守 / 语音转写） */
   .toolmask{position:fixed;inset:0;z-index:78;display:none;align-items:center;justify-content:center;
     background:rgba(4,6,13,.72);backdrop-filter:blur(8px);padding:24px}
   .toolmask.on{display:flex;animation:tmPop .14s ease-out}
@@ -122,14 +122,22 @@
   .asrwave{display:block;width:100%;height:72px}
   .asrwavemeta{position:absolute;right:8px;top:6px;display:flex;gap:10px;font-size:11px;color:#9fd7ff;
     background:rgba(4,10,20,.55);border-radius:6px;padding:1px 6px}
+  /* v2.19.0：语音转写大窗口 */
+  .asrMask .toolcard{max-width:min(1080px,96vw);height:min(92vh,880px)}
+  .asrMask .toolbody{height:100%}
+  .asrMask .asrout{flex:1;min-height:0}
+  .asrMask .asrwavebox{flex:none}
   /* ---- v2.17.0 声波警戒值守台（全屏）---- */
   .guard{position:fixed;inset:0;z-index:200;background:radial-gradient(1200px 700px at 50% 0%,#071426 0%,#04070f 60%,#02040a 100%);
     display:flex;flex-direction:column;color:#dff1ff;font-family:var(--mono,Consolas,monospace)}
   .gTop{display:flex;align-items:center;gap:18px;padding:12px 18px;border-bottom:1px solid rgba(90,170,255,.18);
     background:linear-gradient(180deg,rgba(20,50,90,.35),rgba(4,8,16,0))}
-  .gClock{display:flex;flex-direction:column;line-height:1.15}
-  .gClock .gT{font-size:30px;font-weight:700;letter-spacing:1px;color:#eaf6ff;text-shadow:0 0 14px rgba(80,190,255,.35)}
-  .gClock .gD{font-size:11px;color:#79a6c8}
+  .gClock{display:flex;flex-direction:column;line-height:1.1;gap:2px;padding:6px 14px;border:1px solid rgba(120,180,255,.25);
+    border-radius:12px;background:linear-gradient(160deg,rgba(20,50,90,.4),rgba(4,10,20,.18));box-shadow:0 4px 18px rgba(0,20,40,.4)}
+  .gClock .gT{font-size:34px;font-weight:800;letter-spacing:1.5px;color:#eaf6ff;
+    background:linear-gradient(180deg,#bfeaff,#5cc8ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    text-shadow:0 0 18px rgba(80,200,255,.45);font-variant-numeric:tabular-nums}
+  .gClock .gD{font-size:12px;color:#9fd7ff;letter-spacing:.5px}
   .gDbBox{display:flex;align-items:baseline;gap:6px;margin-left:6px}
   .gDbBox .gDb{font-size:44px;font-weight:800;color:#7fe3ff;text-shadow:0 0 18px rgba(60,200,255,.45)}
   .gDbBox .gUnit{font-size:16px;color:#79a6c8}
@@ -148,9 +156,10 @@
   .gCenter{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-width:0}
   .gWave{position:absolute;inset:0;width:100%;height:100%;border-radius:12px;background:rgba(0,0,0,.28);
     border:1px solid rgba(90,170,255,.16)}
-  .gRing{position:relative;width:min(38vh,300px);height:min(38vh,300px);border-radius:50%;
-    background:radial-gradient(circle at 50% 50%,rgba(6,16,30,.92),rgba(4,10,20,.6));
-    box-shadow:0 0 40px rgba(40,140,220,.18) inset,0 0 24px rgba(40,140,220,.12)}
+  .gRing{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:150px;height:150px;z-index:3;pointer-events:none;border-radius:50%;
+    background:radial-gradient(circle at 50% 50%,rgba(6,16,30,.92),rgba(4,10,20,.6));box-shadow:0 0 40px rgba(40,140,220,.18) inset,0 0 24px rgba(40,140,220,.12);transition:box-shadow .2s}
+  .gLevel{position:absolute;top:10px;left:12px;width:210px;height:62px;z-index:3;pointer-events:none;
+    border-radius:10px;background:rgba(2,8,18,.5);border:1px solid rgba(90,170,255,.18);box-shadow:0 4px 16px rgba(0,20,40,.35)}
   .gSide{width:190px;display:flex;flex-direction:column;gap:10px;justify-content:center}
   .gLamp{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;
     border:1px solid rgba(120,160,200,.18);background:rgba(255,255,255,.03);opacity:.42;transition:.15s}
@@ -189,6 +198,21 @@
     padding:10px 12px;font-size:12px;line-height:1.65;color:#d8f5e6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;margin:6px 0}
   @keyframes alFlash{0%,100%{box-shadow:inset 0 0 0 0 rgba(255,93,115,0)}50%{box-shadow:inset 0 0 0 6px rgba(255,93,115,.65)}}
   body.alarm{animation:alFlash .5s ease-in-out infinite}
+  /* v2.19.0：摄像头媒体预览灯箱（支持旋转） */
+  .gMedia{position:absolute;inset:0;z-index:50;display:none;align-items:center;justify-content:center;
+    background:rgba(2,6,14,.82);backdrop-filter:blur(4px)}
+  .gMediaBox{width:min(92vw,720px);max-height:90vh;background:linear-gradient(160deg,rgba(16,40,72,.96),rgba(6,12,24,.96));
+    border:1px solid rgba(120,180,255,.3);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;
+    box-shadow:0 20px 60px rgba(0,10,30,.6)}
+  .gMediaTop{display:flex;align-items:center;justify-content:space-between;color:#cfe8ff;font-size:14px}
+  .gMediaX{background:rgba(255,255,255,.06);border:1px solid rgba(120,180,255,.35);color:#cfe8ff;border-radius:8px;
+    width:34px;height:34px;font-size:16px;cursor:pointer}
+  .gMediaStage{display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);border-radius:12px;min-height:200px;overflow:hidden}
+  .gMediaStage img,.gMediaStage video{max-width:100%;max-height:62vh;border-radius:8px;transition:transform .2s}
+  .gMediaCtl{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .gMediaCtl button{background:rgba(255,255,255,.06);border:1px solid rgba(120,180,255,.35);color:#cfe8ff;
+    border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;min-height:44px}
+  .gMediaCtl button:active{background:rgba(90,180,255,.2)}
 
   /* ===== v2.18.0 触摸层（实测：主界面按钮原为 40px、下拉框 30px、复选框 13px，均低于 44px 触控标准）===== */
   @media(hover:none) and (pointer:coarse){
@@ -749,14 +773,14 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.18.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.19.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
     <div class="capwrap">
       <button class="cap paused" id="capBtn"><span class="ic"></span><span id="capTxt">开始采集</span></button>
       <button class="cap2" id="lab2Btn" title="打开二级分析台：导入音频文件 / 现场录制 / 整体波形 / 播放控制 / 导出报告与工程"><span class="ic2">🧪</span><span>二级分析</span></button>
-      <button class="cap2" id="toolsBtn" title="音频工具集：会议语音转写 / 环境音频采集 / 声波警戒值守"><span class="ic2">🧰</span><span>音频工具集</span></button>
+      <button class="cap2" id="toolsBtn" title="音频工具集：语音转写 / 环境音频采集 / 声波警戒值守"><span class="ic2">🧰</span><span>音频工具集</span></button>
     </div>
     <div class="tools">
       <span class="chip" id="chipEngine"><span class="d"></span>引擎 <b>待机</b></span>
@@ -1210,7 +1234,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
     L.push('硬件并发：'+navigator.hardwareConcurrency+' · 设备内存：'+(navigator.deviceMemory||'n/a')+'GB');
     L.push('AudioContext：'+((window.AudioContext||window.webkitAudioContext)?'可用':'不可用'));
     L.push('AudioWorklet：'+(window.AudioWorkletNode?'可用':'不可用（环境音频采集将不可用）'));
-    L.push('SpeechRecognition：'+((window.SpeechRecognition||window.webkitSpeechRecognition)?'可用':'不可用（会议语音转写需在线引擎）'));
+    L.push('SpeechRecognition：'+((window.SpeechRecognition||window.webkitSpeechRecognition)?'可用':'不可用（语音转写需在线引擎）'));
     L.push('离线存储：'+(function(){try{localStorage.setItem('__d','1');localStorage.removeItem('__d');return '可用';}catch(_){return '不可用';}})());
     L.push('二级台时长上限：'+lim);
     L.push('');
@@ -1792,7 +1816,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.18.0',APP_BUILD='20261003';
+const APP_VER='2.19.0',APP_BUILD='20261003';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';}catch(e){}
 // ---- 系统监视（需求#4：顶栏 CPU/内存。桌面版经 preload 桥取真实系统值；网页/移动端无权限显示 —） ----
 function sysTick(){
@@ -4406,7 +4430,7 @@ $('toolsMenu').querySelectorAll('button[data-tool]').forEach(b=>{
     const t=b.dataset.tool;
     if(t==='环境音频采集')openTool('envMask');
     else if(t==='声波警戒值守')openTool('alertMask');
-    else if(t==='会议语音转写'){openTool('asrMask');asrDetect();}
+    else if(t==='语音转写'){openTool('asrMask');asrDetect();}
     else toast('（规划中）'+t+' —— 暂未开放，敬请期待');});
 });
 // v2.14.2：诊断日志导出（不属三工具，单独走 data-diag 标记）
@@ -4807,14 +4831,20 @@ function alDrawWave(){
 }
 function alDrawRing(){
   const cv=$('gRing');if(!cv)return;
-  const dpr=window.devicePixelRatio||1;const size=cv.clientWidth||280;
+  const dpr=window.devicePixelRatio||1;const size=cv.clientWidth||150;
   if(cv.width!==Math.round(size*dpr)){cv.width=Math.round(size*dpr);cv.height=Math.round(size*dpr);}
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
   const cx=size/2,cy=size/2,R=size/2-10;
   g.clearRect(0,0,size,size);
+  const col=GUARD.state==='alarm'?'#ff4d63':(GUARD.state==='warn'?'#ffc94d':'#4db6ff');
+  if(GUARD.state==='alarm'){g.fillStyle='rgba(255,77,99,.18)';g.beginPath();g.arc(cx,cy,R+8,0,Math.PI*2);g.fill();
+    cv.style.boxShadow='0 0 40px rgba(255,77,99,.5) inset,0 0 30px rgba(255,77,99,.35)';}
+  else if(GUARD.state==='warn'){g.fillStyle='rgba(255,201,77,.15)';g.beginPath();g.arc(cx,cy,R+8,0,Math.PI*2);g.fill();
+    cv.style.boxShadow='0 0 40px rgba(255,201,77,.42) inset,0 0 28px rgba(255,201,77,.3)';}
+  else cv.style.boxShadow='0 0 40px rgba(40,140,220,.18) inset,0 0 24px rgba(40,140,220,.12)';
   // 底环
-  g.lineWidth=9;g.strokeStyle='rgba(90,150,200,.18)';
-  g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.stroke();
+  g.lineWidth=9;g.strokeStyle=GUARD.state==='normal'?'rgba(90,150,200,.22)':col;g.globalAlpha=GUARD.state==='normal'?.5:1;
+  g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.stroke();g.globalAlpha=1;
   // 刻度（-60 → 0 dB 映射到 240°）
   const A0=Math.PI*0.75,A1=Math.PI*2.25;
   g.strokeStyle='rgba(120,180,230,.35)';g.lineWidth=2;
@@ -4835,7 +4865,6 @@ function alDrawRing(){
   // 当前值弧
   const cur=GUARD.lastDb<=-1e8?-60:Math.max(-60,Math.min(0,GUARD.lastDb));
   const t=(cur+60)/60,ang=A0+(A1-A0)*t;
-  const col=GUARD.state==='alarm'?'#ff4d63':(GUARD.state==='warn'?'#ffc94d':'#4db6ff');
   g.strokeStyle=col;g.lineWidth=9;g.lineCap='round';g.shadowColor=col;g.shadowBlur=16;
   g.beginPath();g.arc(cx,cy,R,A0,ang);g.stroke();g.shadowBlur=0;
   // 指针
@@ -4848,7 +4877,26 @@ function alDrawRing(){
   g.font=(size*0.075)+'px Consolas,monospace';g.fillStyle='#79a6c8';
   g.fillText('dB · 本底 '+GUARD.floor.toFixed(0),cx,cy+size*0.16);
 }
-function alPaintLoop(){alDrawWave();alDrawRing();alPaintTop();GUARD.raf=requestAnimationFrame(alPaintLoop);}
+function alDrawLevel(){
+  const cv=$('gLevel');if(!cv)return;
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth||210,h=cv.clientHeight||62;
+  if(cv.width!==Math.round(w*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  const db=GUARD.lastDb<=-1e8?-60:Math.max(-60,Math.min(0,GUARD.lastDb));const tt=(db+60)/60;
+  const bx=10,by=18,bw=w-20,bh=16;
+  g.fillStyle='rgba(255,255,255,.06)';g.fillRect(bx,by,bw,bh);
+  const grad=g.createLinearGradient(bx,0,bx+bw,0);
+  grad.addColorStop(0,'#3ce8a0');grad.addColorStop(.6,'#3ce8a0');grad.addColorStop(.75,'#ffc94d');grad.addColorStop(1,'#ff4d63');
+  g.fillStyle=grad;g.fillRect(bx,by,bw*tt,bh);
+  const mark=(d,c)=>{const x=bx+bw*((Math.max(-60,Math.min(0,d))+60)/60);g.strokeStyle=c;g.lineWidth=2;
+    g.beginPath();g.moveTo(x,by-3);g.lineTo(x,by+bh+3);g.stroke();};
+  mark(GUARD.thrWarn,'#ffc94d');mark(GUARD.thrAlarm,'#ff4d63');
+  g.fillStyle='#eaf6ff';g.font='700 13px Consolas,monospace';g.textAlign='left';
+  g.fillText('电平 '+(GUARD.lastDb<=-1e8?'--':GUARD.lastDb.toFixed(1))+' dB',bx,14);
+  g.font='10px Consolas,monospace';g.fillStyle='#79a6c8';
+  g.fillText('预警 '+GUARD.thrWarn.toFixed(0)+' · 告警 '+GUARD.thrAlarm.toFixed(0),bx,by+bh+14);
+}
+function alPaintLoop(){alDrawWave();alDrawLevel();alDrawRing();alPaintTop();GUARD.raf=requestAnimationFrame(alPaintLoop);}
 function alPaintTop(){
   const n=new Date(),p=x=>(''+(x|0)).padStart(2,'0');
   const T=$('gTime');if(T)T.textContent=p(n.getHours())+':'+p(n.getMinutes())+':'+p(n.getSeconds());
@@ -4949,9 +4997,9 @@ function alRenderEvents(){
     row.appendChild(t);row.appendChild(lv);row.appendChild(an);
     if(ev.audioUrl){const au=document.createElement('audio');au.controls=true;au.src=ev.audioUrl;row.appendChild(au);}
     if(ev.shotUrl){const im=document.createElement('img');im.className='thumb';im.src=ev.shotUrl;
-      im.title='点击查看告警抓拍';im.onclick=()=>window.open(ev.shotUrl,'_blank');row.appendChild(im);}
+      im.title='点击查看告警抓拍（可旋转）';im.onclick=()=>guardMediaOpen(ev.shotUrl,'img');row.appendChild(im);}
     if(ev.videoUrl){const vb=document.createElement('button');vb.textContent='▶ 视频';
-      vb.onclick=()=>window.open(ev.videoUrl,'_blank');row.appendChild(vb);}
+      vb.onclick=()=>guardMediaOpen(ev.videoUrl,'video');row.appendChild(vb);}
     const be=document.createElement('button');be.textContent='导出';
     be.onclick=()=>{l2Dl(new Blob([alEvAnalysis(ev)],{type:'text/plain'}),alEvName(ev,'分析')+'.txt');
       if(ev.wavBlob)l2Dl(ev.wavBlob,alEvName(ev,'audio')+'.wav');
@@ -4962,6 +5010,16 @@ function alRenderEvents(){
     box.appendChild(row);
   }
 }
+let gMediaRot=0;
+function guardMediaOpen(url,kind){
+  const m=$('gMedia');if(!m)return;const img=$('gMediaImg'),vid=$('gMediaVid');gMediaRot=0;
+  if(kind==='video'){img.style.display='none';vid.style.display='block';vid.src=url;vid.style.transform='';
+    try{vid.play().catch(()=>{});}catch(_){}}
+  else{vid.style.display='none';img.style.display='block';img.src=url;img.style.transform='';}
+  m.style.display='flex';}
+function guardMediaClose(){const m=$('gMedia');if(!m)return;const vid=$('gMediaVid');try{if(vid)vid.pause();}catch(_){}m.style.display='none';}
+function guardMediaRot(d){gMediaRot=(gMediaRot+d)%360;const el=($('gMediaImg').style.display!=='none')?$('gMediaImg'):$('gMediaVid');
+  if(el)el.style.transform='rotate('+gMediaRot+'deg)';}
 /* ---------- 摄像头（告警时抓拍 / 录像）---------- */
 async function alCamTrigger(){
   if(!($('alertCam')&&$('alertCam').checked))return;
@@ -5195,6 +5253,12 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&$('guardScreen')&&$('guardSc
 $('alertExpLog').addEventListener('click',()=>{const L=$('alertLog');if(!L||!L.children.length){toast('暂无值守日志');return;}
   let t='AlphaSun 声波警戒值守日志\n生成时间 '+new Date().toLocaleString()+'\n\n';for(const c of L.children)t+=c.textContent+'\n';
   l2Dl(new Blob([t],{type:'text/plain'}),'alert_log_'+toolTs()+'.txt');});
+$('alertClrLog').addEventListener('click',()=>{const L=$('alertLog');if(!L)return;
+  if(L.children.length&&!confirm('确定清空值守日志？'))return;L.innerHTML='';toast('已清空值守日志');});
+$('gMediaX').addEventListener('click',guardMediaClose);
+$('gRotL').addEventListener('click',()=>guardMediaRot(-90));
+$('gRotR').addEventListener('click',()=>guardMediaRot(90));
+$('gRot0').addEventListener('click',()=>guardMediaRot(-gMediaRot));
 // 摄像头设备枚举（需先获得过权限才能拿到可用 label）
 (async()=>{try{
   const ds=await navigator.mediaDevices.enumerateDevices();
@@ -5206,8 +5270,8 @@ $('alertExpLog').addEventListener('click',()=>{const L=$('alertLog');if(!L||!L.c
 alNtFill();
 alRenderEvents();
 
-// ---- ③ 会议语音转写（v2.15.0：三语 + 云端/本地双模式 + 实时波形 + 原始录音保存）----
-let asrOn=false,asrFinal='',asrT0=null,asrSents=[];
+// ---- ③ 语音转写（v2.15.0：三语 + 云端/本地双模式 + 实时波形 + 原始录音保存）----
+let asrOn=false,asrFinal='',asrT0=null,asrSents=[];let asrAutoTimer=null;
 /* 引擎取值与诚实标注（不得谎报可用）：
      dash        = 云端阿里云 DashScope（已配置 Key）
      dash-nokey  = 云端通道存在但未配置 API Key
@@ -5224,11 +5288,13 @@ function asrWebLang(){return ({zh:'zh-CN',yue:'yue-Hant-HK',en:'en-US'})[asrLang
 function asrSetEng(t){const e=$('asrEng');if(e)e.textContent=t;}
 function asrSetKeyStat(t){const e=$('asrKeyStat');if(e)e.textContent=t;}
 function asrPaintEng(){
-  if(asrEngine==='dash')asrSetEng('引擎：云端 · 阿里云 DashScope');
-  else if(asrEngine==='dash-nokey')asrSetEng('引擎：云端 · 未配置 API Key');
-  else if(asrEngine==='vosk')asrSetEng('引擎：本地 · Vosk 离线');
-  else if(asrEngine==='web')asrSetEng('引擎：Web Speech（浏览器在线）');
-  else asrSetEng('引擎：不支持');
+  const auto=($('asrMode')&&$('asrMode').value)==='auto';
+  const pre=auto?'自动 · ':'';
+  if(asrEngine==='dash')asrSetEng(pre+'引擎：云端 · 阿里云 DashScope');
+  else if(asrEngine==='dash-nokey')asrSetEng(pre+'引擎：云端 · 未配置 API Key');
+  else if(asrEngine==='vosk')asrSetEng(pre+'引擎：本地 · Vosk 离线');
+  else if(asrEngine==='web')asrSetEng(pre+'引擎：Web Speech（浏览器在线）');
+  else asrSetEng(pre+'引擎：不支持');
 }
 /* ---------- 采集器：云端/本地共用，累积 PCM 供波形、WAV、Vosk 使用 ---------- */
 const ASR_CAP={ctx:null,stream:null,src:null,proc:null,chunks:[],len:0,sr:16000,segBase:0};
@@ -5393,11 +5459,41 @@ async function asrProbeOffline(lang){
     catch(e){diagAdd('warn','Vosk 运行时加载失败：'+((e&&e.message)||e));return false;}}
   return !!(window.Vosk&&window.Vosk.createModel);
 }
+async function asrBestEngine(){
+  if(window.asrCloud){let st={hasKey:false};try{st=await window.asrCloud.keyStatus();}catch(_){}
+    if(st&&st.hasKey)return 'dash';}
+  if(asrVosk&&asrVosk.model)return 'vosk';
+  if(await asrProbeOffline(asrLangCode()))return 'vosk';
+  if(asrSR())return 'web';
+  return 'none';
+}
+async function asrAutoTick(){
+  if(!asrOn)return;
+  const want=await asrBestEngine();
+  if(want===asrEngine)return;
+  if(want==='dash'){
+    if(asrVosk.rec)asrVoskCleanup();
+    if(recog){try{recog.stop();}catch(_){}recog=null;}
+    asrEngine='dash';asrPaintEng();toast('☁️ 已自动升级到云端转写');
+  }else if(want==='vosk'&&asrEngine!=='vosk'){
+    if(recog){try{recog.stop();}catch(_){}recog=null;}
+    asrEngine='vosk';asrPaintEng();await asrBeginVoskRec();toast('已降级到本地 Vosk 离线转写');
+  }else if(want==='web'&&asrEngine!=='web'){
+    if(asrVosk.rec)asrVoskCleanup();
+    asrEngine='web';asrPaintEng();asrBeginWeb();toast('已降级到 Web Speech 在线转写');
+  }
+}
 async function asrDetect(){
   asrSetEng('引擎：检测中…');
-  const mode=($('asrMode')&&$('asrMode').value)||'cloud';
+  const mode=($('asrMode')&&$('asrMode').value)||'auto';
   const lang=asrLangCode();
-  if(mode==='cloud'){
+  if(mode==='auto'){
+    const best=await asrBestEngine();asrEngine=best;
+    if(best==='dash')asrSetKeyStat('自动：云端可用（优先）');
+    else if(best==='vosk')asrSetKeyStat('自动：云端不可用，本地 Vosk 就绪');
+    else if(best==='web')asrSetKeyStat('自动：云端不可用，回退 Web Speech');
+    else asrSetKeyStat('自动：暂无可用引擎');
+  }else if(mode==='cloud'){
     if(window.asrCloud){
       let st={hasKey:false};
       try{st=await window.asrCloud.keyStatus();}catch(e){diagAdd('warn','云端 Key 状态查询失败：'+((e&&e.message)||e));}
@@ -5471,6 +5567,15 @@ function asrBeginWeb(){
   $('asrStat').textContent='转写中（Web Speech）…';
 }
 /* ---------- 开始 / 停止 ---------- */
+function asrStartEngine(){
+  if(asrEngine==='dash')$('asrStat').textContent='录制中（云端分段转写）…';
+  else if(asrEngine==='dash-nokey'){$('asrStat').textContent='⚠️ 未配置 API Key，已回退 Web Speech';
+    toast('未配置云端 Key，先点「云端设置」');asrEngine='web';asrPaintEng();asrBeginWeb();}
+  else if(asrEngine==='vosk')asrBeginVoskRec();
+  else if(asrEngine==='web')asrBeginWeb();
+  else{$('asrStat').textContent='❌ 无可用引擎';
+    if(asrLangCode()==='yue')toast('粤语暂无离线模型，请切换到云端模式');}
+}
 async function asrBegin(){
   const mode=($('asrMode')&&$('asrMode').value)||'cloud';
   asrFinal='';asrSents=[];asrT0=new Date();
@@ -5481,20 +5586,11 @@ async function asrBegin(){
   asrWaveStart();asrOn=true;
   $('asrStart').disabled=true;$('asrStop').disabled=false;
   await asrDetect();
-  if(mode==='local'){
-    if(asrEngine==='vosk')asrBeginVoskRec();
-    else if(asrEngine==='web')asrBeginWeb();
-    else{asrEngine='none';asrPaintEng();$('asrStat').textContent='❌ 离线模型未放置，且无在线回退';
-      if(asrLangCode()==='yue')toast('粤语暂无离线模型，请切换到云端模式');}
-  }else{
-    if(asrEngine==='dash')$('asrStat').textContent='录制中（云端分段转写）…';
-    else if(asrEngine==='dash-nokey'){$('asrStat').textContent='⚠️ 未配置 API Key，已回退 Web Speech';
-      toast('未配置云端 Key，先点「云端设置」');asrEngine='web';asrPaintEng();asrBeginWeb();}
-    else if(asrEngine==='web')asrBeginWeb();
-    else $('asrStat').textContent='❌ 无可用引擎';
-  }
+  asrStartEngine();
+  if(($('asrMode')&&$('asrMode').value)==='auto'){asrAutoTimer=setInterval(asrAutoTick,12000);}
 }
 async function asrStop(){
+  if(asrAutoTimer){clearInterval(asrAutoTimer);asrAutoTimer=null;}
   if(!asrOn){return;}
   const keep=$('asrKeepWav');
   if(ASR_CAP.len>0){
@@ -5703,7 +5799,7 @@ resize();frame();
        移出 .app 后：fixed 相对视口居中，z-index 在根层比较，不被遮挡。 -->
   <div class="toolsMenu" id="toolsMenu">
     <div class="tmTtl">音频工具集</div>
-    <button data-tool="会议语音转写"><span class="nm">会议语音转写</span><span class="ds">中文实时转写 · 导出 txt / srt</span></button>
+    <button data-tool="语音转写"><span class="nm">语音转写</span><span class="ds">中文实时转写 · 导出 txt / srt</span></button>
     <button data-tool="环境音频采集"><span class="nm">环境音频采集</span><span class="ds">长时无人值守录制 · 定时/触发</span></button>
     <button data-tool="声波警戒值守"><span class="nm">声波警戒值守</span><span class="ds">阈值触发声光警报 · 值守日志</span></button>
     <button data-diag="1"><span class="nm">🩺 导出运行日志</span><span class="ds">错误 / 警告 / 版本 / 平台 · 排障用</span></button>
@@ -5766,6 +5862,7 @@ resize();frame();
     <div class="gMain">
       <div class="gCenter">
         <canvas id="gWave" class="gWave"></canvas>
+        <canvas id="gLevel" class="gLevel"></canvas>
         <canvas id="gRing" class="gRing"></canvas>
       </div>
       <div class="gSide">
@@ -5782,6 +5879,13 @@ resize();frame();
         <button class="cap2" id="gEvClear">清空列表</button>
         <span class="hint" id="gEvHint">每条事件含：起止时间 · 音频分析 · 录音回放 · 告警图像/视频</span></div>
       <div class="gEvList" id="gEvList"></div>
+    </div>
+    <div class="gMedia" id="gMedia" style="display:none">
+      <div class="gMediaBox">
+        <div class="gMediaTop"><span id="gMediaTtl">媒体预览</span><button class="gMediaX" id="gMediaX">✕</button></div>
+        <div class="gMediaStage"><img id="gMediaImg" alt="" style="display:none"><video id="gMediaVid" style="display:none" controls playsinline></video></div>
+        <div class="gMediaCtl"><button id="gRotL">⟲ 左转 90°</button><button id="gRot0">复位</button><button id="gRotR">右转 90° ⟳</button></div>
+      </div>
     </div>
   </div>
   <!-- v2.17.0 音频工具集②：声波警戒值守（全屏值守台 + 事件系统 + 摄像头 + 告警推送） -->
@@ -5828,20 +5932,20 @@ resize();frame();
             <span class="hint">配置保存在本机 localStorage；短信需自备阿里云账号（付费）</span></div>
         </div>
         <div class="toollog" id="alertLog"></div>
-        <div class="toolrow"><button class="cap2" id="alertExpLog">导出值守日志</button></div>
+        <div class="toolrow"><button class="cap2" id="alertExpLog">导出值守日志</button><button class="cap2" id="alertClrLog">清空日志</button></div>
       </div>
     </div>
   </div>
-  <!-- v2.15.0 音频工具集③：会议语音转写（三语 + 云端/本地双模式 + 波形 + 录音保存） -->
+  <!-- v2.15.0 音频工具集③：语音转写（三语 + 云端/本地双模式 + 波形 + 录音保存） -->
   <div class="toolmask" id="asrMask">
     <div class="toolcard">
-      <div class="toolhead"><span class="toolttl">🎙️ 会议语音转写 <span class="badge2" id="asrEng">引擎：检测中</span></span>
+      <div class="toolhead"><span class="toolttl">🎙️ 语音转写 <span class="badge2" id="asrEng">引擎：检测中</span></span>
         <button class="toolx" id="asrClose">✕</button></div>
       <div class="toolbody">
         <div class="toolrow"><label>语言</label>
           <select id="asrLang"><option value="zh" selected>中文（普通话）</option><option value="yue">中文（粤语）</option><option value="en">English</option></select>
           <label>模式</label>
-          <select id="asrMode"><option value="cloud" selected>云端（联网 · 阿里云）</option><option value="local">本地（离线 · Vosk）</option></select>
+          <select id="asrMode"><option value="auto" selected>自动（优先云端）</option><option value="cloud">云端（联网 · 阿里云）</option><option value="local">本地（离线 · Vosk）</option></select>
         </div>
         <div class="toolrow"><label class="sw"><input id="asrInt" type="checkbox" checked> 实时中间结果</label>
           <label class="sw"><input id="asrAutoSeg" type="checkbox" checked> 分段自动转写</label>
