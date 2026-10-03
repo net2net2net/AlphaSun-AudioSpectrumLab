@@ -5,6 +5,134 @@
 
 
 
+## v2.21.0（2026-10-03）—— 界面真实截图审查 + 修复三处 CSS 污染缺陷（大窗口首次真正生效）
+
+### 缘起：建立「视觉证据」基础设施
+
+以往美化改动靠**凭想象改 CSS**，无法判断改完是变好还是变丑。本轮新增
+`tools/ui-shot.js`（`npm run uishot`）：用假麦克风**真机渲染**，把主界面（默认/采集）、
+语音转写大窗口、环境采集、值守台全屏、手机竖屏、手机横屏共 **8 张截图**输出到
+`.workbuddy/shots/`，**用真实渲染结果驱动美观改造**（本次三个缺陷全部由此发现）。
+
+### 修复 ①：`.hint` 通用类名被空态浮层规则污染（影响全项目）
+
+- **现象**：语音转写窗口内多行说明文字**互相重叠**、底部说明浮到波形框上方；
+  环境采集/值守面板同类问题。
+- **真因**（DOM 几何实测定位，非猜测）：第 459 行有一条为主画布空态设计的规则
+  `.hint{position:absolute;inset:0;display:flex;…}`，而 `.hint` 是**全项目通用类名**，
+  被三个工具面板的所有静态说明文字继承 → 每个说明文字都被绝对定位铺满整个容器、互相重叠。
+  诊断证据：`element.matches()` 显示这些说明的 `position:absolute; top:0; height:691px`。
+- **修复**：把该规则收窄为 **`#hint`**（唯一真正的空态浮层容器），通用 `.hint` 回归静态文本。
+  **一次性修复全部三个面板**，并让状态文字（`asrStat`「待命」、`asrKeyStat`、`envStat`）归位。
+
+### 修复 ②：语音转写「大窗口」选择器写错 class，从未生效（v2.19.0 回归）
+
+- **真因**：v2.19.0 的大窗口 CSS 写作 `.asrMask .toolcard{…}`，但实际 DOM 是
+  `<div class="toolmask" id="asrMask">` —— **class 是 `toolmask`，`asrMask` 只是 id**。
+  故 `.asrMask .xxx` 从来没匹配上，`height:min(92vh,880px)` 形同虚设，窗口其实是被内容撑开。
+  诊断证据：`body.matches('.asrMask .toolbody')` 返回 **false**，而 `closest('#asrMask')` 为 true。
+- **修复**：选择器全部改用 **`#asrMask`**（id 可靠），大窗口**首次真正生效**。
+
+### 修复 ③：双层滚动 + flex 挤压导致布局溢出
+
+- `.toolcard` 基础样式已有 `max-height:90vh;overflow:auto`，此前又给 `.toolbody` 加
+  `overflow-y:auto` → **双滚动条**；且 `.asrout{flex:1}` 在错误选择器下未生效，
+  底部说明被 `flex:1` 挤出容器。
+- **修复**：滚动只保留一层（`.toolcard` 滚），`.toolbody` 用 `flex:1 1 auto;min-height:0`
+  填满剩余空间；`asrout{min-height:140px}`、`asrwavebox`/`.toolrow`/`>.hint` 均 `flex:none`。
+
+### 交付（MD5）
+
+- Windows 便携版（**单文件**）`AlphaSun-AudioLab-2.21.0-portable.exe`（68.0 MB）：`1a060126e3ee2195ea0e7fe198084eb4`
+- Linux x64 `AlphaSun-AudioLab-2.21.0-linux-x64.tar.gz`（98.9 MB）：`888ba6883e1865e7a5432663525d1ae6`
+- Android 自签 release `AlphaSun-AudioLab-2.21.0.apk`（6.0 MB，versionCode 36）：`de8e0b1f38578492a325f03172dae3ff`
+- 旧版本产物已清理：`dist/` 仅保留当前版三件（v2.19.0 / v2.20.0 共 5 个文件已删，均已发布到 Release 且可再生）。
+- `npm run sync` 三处源码 MD5 一致（根 / `www/` / Android assets）。
+
+### 已知限制（诚实标注）
+
+- **macOS 包**（zip/dmg）：electron-builder 硬性要求 **macOS 主机**，Windows 上无法交叉构建。
+- **iOS / iPadOS IPA**：需 macOS + Xcode + Apple Developer 账号签名，本环境不可为；
+  但 `ios/` 工程与全部代码已就绪同步，按 `docs/iOS-macOS-构建指南.md` 在 Mac 上即可出包。
+- 横竖屏与触摸适配已内置（17 个响应式断点 + `viewport-fit=cover` 安全区 + 触摸目标 ≥44px），
+  已在手机竖屏/横屏视口下由 `respgate` 34 项验证；但**真机触控手感**仍建议在 iOS/Android 真机上过一遍。
+
+### 防回归
+
+- 全部门禁零回归：`check` 五阶段全绿 · `qa` **44/44** · `guardsmoke` **25/25** ·
+  `audiosmoke` **39/39** · `micsmoke` **8/8** · `respgate` **34/34**。
+- 清理排错过程临时脚本（`_diag-asr`/`_diag-css`/`_diag-hint`），保留 `ui-shot.js` 作为长期工具。
+
+### 文档同步（本轮另一重点）
+
+四份文档此前严重滞后于代码（README/架构说明停在 v2.13.0、iOS-macOS 指南停在 2.0.0），
+本轮全部对齐到 v2.21.0 现状：
+- `README.md`：补音频工具集三大模块能力表、11 项门禁脚本清单、构建坑（Synology 盘 rcedit）、
+  五种交付形态与真机限制。
+- `docs/架构说明.md`：新增 2.0 跨模块麦克风协调、2.7 语音转写架构、2.8 值守台判定模型；
+  崩溃防线补 `ScriptProcessorNode` 与 AudioWorklet 类型两条；数据结构表补 5 个模块状态。
+- `docs/测试与回归.md`：补四个真机冒烟门禁与铁律、两条新踩坑（闭包内符号 evaluate 不可达、
+  假设备复现不了设备独占）、更新发布流程为 gh API GET-first 方案。
+- `docs/iOS-macOS-构建指南.md`：版本号表更新、补充 iOS 横竖屏/刘海屏/44px 触摸适配说明与易漏点。
+
+## v2.20.0（2026-10-03）—— 麦克风占用全链路排错与整改（各采集连带失败修复）
+
+### 用户报告与复盘
+
+> 「点击**开始采集**，出现错误『❌ 麦克风被其他程序占用 → 请关闭正在使用麦克风的软件（或重启电脑）后重试』；
+> 其他音频采集也都出错，看看是不是关联性都出问题。」
+
+「一个模块出错、其它采集全部连带失败」是典型的**跨模块麦克风流残留**特征：应用内多路 `getUserMedia`
+（主采集 / 环境采集 / 值守 / 转写 / 二级台实时波形）互不知情，任一路异常残留就会占住设备，
+其余模块再 `getUserMedia` 全部撞上它 → `NotReadableError`（对外显示为「麦克风被其他程序占用」）。
+
+### 排错定位（三个真实缺陷，互相叠加）
+
+1. **跨模块残留流（主因）**：各采集启动前**互不清理**他方流。主采集 `start()`、环境 `envStartCapture`、
+   值守 `alBegin`、转写 `asrCapStart` 都直接 `getUserMedia`，若先前某模块（如二级台 `l2LiveOwnMic`
+   自开的 `L2.liveStream`、或值守/转写中途失败的 `alStream`/`ASR_CAP.stream`）未释放，
+   后续所有采集都会被锁死。
+2. **异常路径流泄漏**：`envStartCapture`/`alBegin`/`asrCapStart` 均为「先 `getUserMedia` 成功拿到流，
+   再做 `addModule`/`new AudioWorkletNode` 等可能抛错的初始化」。抛错时流已开但函数中断；
+   `asrBegin` 的 catch 更是**只 `toast` 不释放、按钮不复位** → 麦克风被永久占用、界面卡在采集态。
+3. **`l2LiveOwnMic` 竞态**：`micAsk` 标志在 `.then` 链末才复位，慢设备下多帧可并发开多路麦克风，
+   反而自己把设备占死。
+
+### 整改内容（index.html，10 处）
+
+- **新增跨模块解锁函数 `releaseGhostMic(keep)`**：启动任一采集前，释放「所有其它模块处于非活跃态
+  却仍残留」的麦克风流 + 二级台自开流；`keep` 参数标记发起者（`main`/`env`/`guard`/`asr`），
+  正在使用的设备不被夺走。**根治「一个模块失败 → 锁死其它全部采集」**。
+- **四处采集启动前接入**：`start()`→`releaseGhostMic('main')`、`envStartCapture`→`'env'`、
+  `alBegin`→`'guard'`、`asrCapStart`→`'asr'`。
+- **异常路径兜底**：`envStartCapture`/`asrCapStart` 的 `getUserMedia` 成功后用 `try/catch` 包裹初始化，
+  失败即释放流并 `throw`；`asrBegin` 失败补 `asrCapStop()` + 「开始/停止」按钮复位。
+- **修 `l2LiveOwnMic` 竞态**：`micAsk` 同步置位、结束统一复位，杜绝并发开多路流。
+- 副带修复：把 `start()` 之前 `status` 元素查询的脆弱写法收敛（不改变行为）。
+
+### 防回归：麦克风占用专项真机冒烟（新增）
+
+- `tools/mic-smoke.js`（`npm run micsmoke`）**8 / 8 全绿**：以**真实 UI 点击**驱动
+  （主采集开/停 → 环境采集/值守/转写依次启停 → 断言各按钮与值守台完全复位 → 全程零 pageerror），
+  守住「整条采集链路不被自己占死、无跨模块流残留」。
+- 新增 `package.json` 脚本 `micsmoke`；**清理**排错过程临时脚本 `_mic-probe.js` / `_mic-diag.js`（不入库）。
+
+### 诚实边界（重要，勿误读门禁强度）
+
+- 本环境 Chrome **假设备允许同一麦克风被多路 `getUserMedia` 并发占用**（`micsmoke` 编写期实测：
+  第一路存活时第二/三路均 `ok`，永不返回 `NotReadableError`）。
+  因此**真机上「被其它真实软件占用」→ `NotReadableError` 的独占冲突无法在本自动化环境复现**
+  （需真实麦克风 + 真正占用它的软件）。`micsmoke` 断言的是**整改逻辑本身**
+  （残留流被清、跨模块不互锁、启动成功、按钮复位、流不泄漏），这些在真机同样成立。
+- 若用户在真机仍遇「麦克风被占用」，请先确认**是否真有其它软件**（如微信会议/Teams/钉钉/录屏）
+  开着麦克风 —— 本应用已确保「自己不会占死自己」；若是外部软件占用，属操作系统层面，需关闭外部软件。
+
+### 门禁（全绿，零回归）
+
+- `npm run micsmoke` **8 / 8**（新增）· `npm run check` 五阶段全绿（validate+语法+算法+三处源码 MD5+资源）。
+- 回归：`npm run qa` **44 / 44** · `npm run guardsmoke` **25 / 25** · `npm run audiosmoke` **39 / 39**（均与 v2.19.0 一致）。
+- 版本 v2.20.0 / versionCode 35。
+
 ## v2.19.0（2026-10-03）—— 语音转写改名 + 大窗口自动升降级 + 声波警戒值守台重构
 
 ### ① 语音转写改名（全量）
