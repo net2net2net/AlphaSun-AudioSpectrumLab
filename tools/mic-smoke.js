@@ -1,26 +1,21 @@
 #!/usr/bin/env node
-/* v2.20.0 麦克风占用整改 · 专项真机冒烟（npm run micsmoke）
+/* 麦克风占用整改 · 专项真机冒烟（npm run micsmoke）
  *
- * 为什么需要它（用户实测复盘）：
- *   点「开始采集」报「❌ 麦克风被其他程序占用 → 请关闭正在使用麦克风的软件」，
- *   且环境采集 / 值守 / 转写 **全部** 连带失败。根因是二级台「实时波形」会私自
- *   getUserMedia 开一路麦克风存进 L2.liveStream（l2LiveOwnMic），仅在
- *   l2LiveFreeze / l2LiveExit / 关面板时释放；主采集与 env/guard/asr 互不知情，
- *   撞上残留流即 NotReadableError —— 一个模块的残留锁死全部采集。
+ * 复盘两轮（用户实测驱动）：
+ *   v2.20.0 定位到「二级台 L2.liveStream 幽灵流」并整改，但用户报告**问题复发** ——
+ *   点「开始采集」仍报「❌ 麦克风被其他程序占用」，各采集仍连带失败。
+ *   v2.23.0 确认真凶是**另一个被遗漏的占用源**：SpeechRecognition 会话（recog）。
+ *   它独立于 MediaStream：setupASR() 每次调用都 new SR() 新建会话，stop() 只 stop() 从不置 null
+ *   → 反复开关采集堆积多个「已启动未释放」会话；且 stop() 异步、底层释放有延迟，
+ *   立刻 getUserMedia 必撞 NotReadableError。整改为 recogStopSession()（abort+stop+置 null）。
  *
- * 本脚本用假麦克风（--use-fake-device-for-media-stream）真跑，复现/守住三条整改：
- *   ① 各采集启动前 releaseGhostMic() 主动清理残留流，不被自己占死；
- *   ② getUserMedia 成功后若初始化抛错，流必须被释放（不泄漏、按钮不复位）；
- *   ③ 残留流不跨模块累积（流计数可控）。
- *
- * 诚实边界（实测确认，非推测）：Chrome 假设备**允许**同一设备被多路 getUserMedia
- * 并发占用（tools/_mic-probe.js 实测：第一路存活时第二/第三路均 ok，永不返回
- * NotReadableError）。因此本环境**无法**自动复现真机上「另一软件占用麦克风」→
- * NotReadableError 的独占冲突（那需真实麦克风 + 真正占用它的软件）。
- * 本脚本改为断言**整改逻辑本身**（与设备独占无关，均可真机验证）：
- *   ① releaseGhostMic() 能把「残留」的 L2.liveStream 停掉（track.readyState→ended）；
- *   ② 各采集（主/env/guard/asr）在有残留流时仍能启动成功（不被自己占死）；
- *   ③ getUserMedia 成功后若初始化抛错，流被释放、按钮不复位、跨模块流不累积。
+ * 诚实边界（实测确认，非推测）：Chrome 假设备允许同一设备被多路 getUserMedia 并发占用
+ * （_mic-probe 实测：一路存活时二/三路均 ok，永不返回 NotReadableError），
+ * 因此**无法**在本环境复现真机「独占占用」冲突（需真实软件占用麦克风）。
+ * 本脚本断言**整改逻辑本身**（真机同样成立）：
+ *   ① 残留流被清（releaseGhostMic / recogStopSession）；
+ *   ② 反复 6 轮开关采集后不堆积会话、回到停止态；
+ *   ③ 主/env/guard/asr 跨模块不互锁，启动成功、按钮复位、零 pageerror。
  */
 const path = require('path');
 const os = require('os');
@@ -104,6 +99,22 @@ function chk(name, ok, detail) {
   });
   chk('主采集已停止（按钮回到 paused / 开始采集）', stopped.paused,
     'paused=' + stopped.paused + ' capTxt=' + stopped.capTxt);
+
+  // v2.23.0 防回归：反复开关采集后 SpeechRecognition 会话不得堆积（recog 必须置 null 后重建）。
+  // 假设备不独占、无法复现真机 NotReadableError，但「反复 6 轮 start/stop 全程零 pageerror 且仍能启动」
+  // 可守住「会话反复 new 而不置 null」这类逻辑泄漏。
+  console.log('\n[3.5] 反复 6 轮采集开关（防识别会话堆积）');
+  for (let i = 0; i < 6; i++) {
+    await page.click('#capBtn'); await page.waitForTimeout(700);
+    await page.click('#capBtn'); await page.waitForTimeout(400);
+  }
+  // 6 轮共 12 次点击，最后应停在「停止态」（按钮含 .paused）；关键是不抛异常、能反复开停
+  const churn = await page.evaluate(() => {
+    const b = document.getElementById('capBtn');
+    return { paused: b ? b.classList.contains('paused') : null, capTxt: (document.getElementById('capTxt') || {}).textContent || '' };
+  });
+  chk('反复 6 轮开关后回到停止态（会话无堆积、无异常）', churn.paused === true,
+    'paused=' + churn.paused + ' capTxt=' + churn.capTxt);
 
   // 依次验证 环境采集 / 值守 / 转写 在主采集刚停后都能启动（跨模块不残留）
   console.log('\n[4] 依次启动 环境采集 / 值守 / 转写（验证跨模块不互相锁死）');
