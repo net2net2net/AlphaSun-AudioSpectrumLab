@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('asrCloud', {
   /** @param {{wavBase64:string, lang:'zh'|'yue'|'en'}} args */
   transcribe: (args) => ipcRenderer.invoke('asr:cloud', args),
   keyStatus: () => ipcRenderer.invoke('asr:keyStatus'),
+  /** v2.24.0：云端连通性探测（不提交音频、不计费），用于 auto 模式可靠降级/升级 */
+  ping: () => ipcRenderer.invoke('asr:ping'),
   setKey: (k) => ipcRenderer.invoke('asr:setKey', k),
   saveWav: (args) => ipcRenderer.invoke('asr:saveWav', args),
 });
