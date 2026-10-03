@@ -112,7 +112,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
   console.log('\n[4] 三个工具面板可依次打开/关闭');
   const tools = [
-    { name: '会议语音转写', item: '会议语音转写', mask: 'asrMask' },
+    { name: '语音转写', item: '语音转写', mask: 'asrMask' },
     { name: '环境音频采集', item: '环境音频采集', mask: 'envMask' },
     { name: '声波警戒值守', item: '声波警戒值守', mask: 'alertMask' }
   ];
@@ -136,12 +136,12 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
     await page.evaluate(id => { const el = document.getElementById(id); if (el) el.classList.remove('on'); }, t.mask);
   }
 
-  console.log('\n[5] 会议语音转写：引擎标注诚实性');
+  console.log('\n[5] 语音转写：引擎标注诚实性');
   await page.evaluate(() => { const m = document.getElementById('toolsMenu'); if (m) m.classList.remove('on'); });
   await page.click('#toolsBtn');
   await page.waitForTimeout(200);
   await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('#toolsMenu button[data-tool]')).find(x => x.dataset.tool === '会议语音转写');
+    const b = Array.from(document.querySelectorAll('#toolsMenu button[data-tool]')).find(x => x.dataset.tool === '语音转写');
     if (b) b.click();
   });
   await page.waitForTimeout(1800);   // 等引擎探测：云端 Key 状态 / HEAD 离线模型（+ 可能注入 5.8MB 运行时）
