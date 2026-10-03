@@ -6,7 +6,7 @@
 > 全部计算在浏览器/WebView 本地完成（Web Audio API），**不上传任何音频**，无外部 CDN 依赖。
 > **作者：阳光 net2net2net（VX：net2net）**
 >
-> **当前版本 v2.13.0 · 单一真源 = 根目录 `index.html`（约 4200 行）**
+> **当前版本 v2.21.0 · 单一真源 = 根目录 `index.html`（约 6300 行）**
 
 ## 一、它能做什么
 
@@ -23,6 +23,17 @@
 - **前景/背景分离**：谱减法 + 平稳性判别，实时区分稳态背景与前景事件。
 - **舒适度警报灯**：平静/正常/不适/高危四级（RMS + 冲击性 + 持续时间门）。
 - **事件日志**（毫秒级时间戳）+ IndexedDB 环形缓存 + 自包含 HTML 报告 / CSV 导出。
+- **跨模块麦克风联动**（v2.20.0）：任一采集启动前自动释放其它模块的残留麦克风流，杜绝「一个模块失败 → 锁死全部采集」。
+
+### 音频工具集（v2.13.0 起，三大模块）
+
+| 模块 | 能力 |
+|---|---|
+| **语音转写**（v2.15.0，v2.19.0 改名+升级） | 三语（普通话/粤语/英语）· **大窗口 1080×880**（v2.19.0）· **auto 默认模式**：优先云端 DashScope，不可用自动降级本地 Vosk/浏览器 Web Speech，云端恢复自动升级（每 12s 探测）· 实时波形 + 计时 · 原始录音 WAV 保存 · 分段转写（20/30/60s）· 云端 Key 内联配置 |
+| **环境音频采集**（v2.16.0） | 实时波形 + 电平 · **地点+时间命名**（服务降噪取证）· 多维度评估报告：声级统计/频段构成/舒适度评级(GB 3096-2008)/声源推断(风·水·设备·人声·交通)/降噪建议/未校准声明 · 手动·定时·声级触发三模式 |
+| **声波警戒值守**（v2.17.0，v2.19.0 重构） | **全屏值守台**：实时时钟/波形/经典环谱/三色警戒灯 · 本底自动评估 + 预警/告警阈值（v2.17.0 起改「本底+余量」判定）· **环谱整环变色**：正常蓝/预警黄/告警红（v2.19.0）· **左上电平表 210×62 + 顶部中央环谱 150×150，均不遮挡主波形**（v2.19.0）· 事件归档（峰值/均值/超阈占比 + 录音回放 + 导出全部 txt/csv + 清空）· 摄像头告警抓拍 JPG / 录像 WebM（**回放支持左转/复位/右转**，v2.19.0）· 告警推送（企业微信/钉钉/飞书/Server酱/Webhook/短信）· 日志清理与导出（v2.19.0）|
+
+> 三大模块共用项目统一的 **AudioWorklet `as-rec`** 直采 PCM（`index.html` 内已无 `ScriptProcessorNode`）。
 
 ### 二级分析台（录制后的离线深度分析）
 - **录制**：AudioWorklet 直采 PCM → WAV（产物与导入 WAV 同构，规避 MediaRecorder webm 的 `duration=Infinity` 问题）。
@@ -66,10 +77,16 @@ AlphaSun-AudioSpectrumLab/
 | 形态 | 状态 | 命令 |
 |---|---|---|
 | HTML / PWA | ✅ | 浏览器打开 `index.html`（https/localhost/file:// 安全上下文） |
-| Electron EXE（Windows） | ✅ 已产出 | `npm run dist:win`（portable 免安装） |
-| Electron（Linux） | ✅ 已产出 | `env -u ELECTRON_RUN_AS_NODE npx electron-builder --linux tar.gz` |
-| Capacitor APK（Android） | ✅ 已产出 | `node sync-www.js` → `./gradlew assembleRelease` |
-| Electron（macOS）/ iOS IPA | ⚙️ 配置就绪 | 需 Mac + Xcode：`npm run dist:mac` / Xcode Archive |
+| Electron EXE（Windows） | ✅ 已产出 | `npm run dist:win`（portable **单文件**免安装，产物落 `dist/`） |
+| Electron（Linux） | ✅ 已产出 | `npm run dist:linux`（tar.gz / AppImage，产物落 `dist/`） |
+| Capacitor APK（Android） | ✅ 已产出 | `npm run sync` → `cd android && ./gradlew assembleRelease`（本机 keystore 自签，versionCode 35） |
+| Electron（macOS） | ⚙️ 配置就绪 | **需 Mac 主机**：`npm run dist:mac`（Windows 上 electron-builder 硬性拒绝出 mac 包） |
+| iOS / iPadOS IPA | ⚙️ 工程就绪 | **需 Mac + Xcode**（详见 `docs/iOS-macOS-构建指南.md`） |
+
+> **构建注意（Windows 主机踩过的坑，务必遵守）**：
+> 项目位于 Synology 同步盘，electron-builder 的 rcedit 写 EXE 资源会失败
+> （`Unable to commit changes`）→ **中间产物必须落 `os.tmpdir()`**，`tools/build-dist.js` 已内置此逻辑并自动回落 `dist/`。
+> 另：调用 Electron 前须清 `ELECTRON_RUN_AS_NODE`（否则 Electron 退化为纯 Node 静默退出），脚本内已处理。
 
 改完功能后的标准同步流程：
 ```bash
@@ -96,13 +113,22 @@ node tools/check.js     # 一键自检：validate + 语法 + 算法自检 + 三�
 
 | 脚本 | 作用 |
 |---|---|
-| `validate.js` | 构建期守卫：JS 引用 210 个 DOM id 全部存在、E 映射覆盖、五点版本一致、无陈旧版本残留 |
+| `validate.js` | 构建期守卫：JS 引用 320+ 个 DOM id 全部存在、E 映射覆盖、五点版本一致、无陈旧版本残留 |
 | `tools/algo-selftest.js` | 从 **index.html 源码真身**抽取算法验算：A/C 计权贴合 IEC 61672-1 标称值、BPM 命中率与非节拍拒绝 |
-| `tools/check.js` | 串联全部检查（发布前必跑） |
-| `tools/pw-electron-test.js` | 真实 Electron + 虚拟麦克风全链路回归（录制→声谱图→三处理→五格式保存） |
-| `tools/pw-metrics-check.js` | 新增指标实跑验证：确认真的出数，而不是「不崩溃却恒显示 —」 |
-| `tools/pw-flac-edge.js` | 用 Chromium 自带解码器校验自研 FLAC 产物（走 HTTP，不用 file://） |
+| `tools/env-report-selftest.js` | 环境评估报告算法自检（**抽真源码执行**，杜绝测试版与产品版漂移） |
+| `tools/qa-gate.js`（`npm run qa`） | **44 项**真实加载回归：弹窗不遮挡/居中、三面板启闭、引擎标注诚实性、云端 IPC 往返（缺 Key 明确报错）、值守台 DOM 齐备 |
+| `tools/guard-smoke.js`（`npm run guardsmoke`） | **25 项**假麦克风真机冒烟：值守全链路（开始→本底评估→状态机→事件归档→退出复原）、环谱告警整环变红、日志清空、媒体灯箱 DOM |
+| `tools/audio-tools-smoke.js`（`npm run audiosmoke`） | **39 项**三大工具**全按钮**逐个点击（假麦克风真跑），捕获 pageerror/crash/console.error |
+| `tools/mic-smoke.js`（`npm run micsmoke`） | **8 项**麦克风占用专项（v2.20.0）：全链路启停 + 按钮复位 + 无跨模块流残留 |
+| `tools/responsive-gate.js` | **34 项**4 视口（桌面/手机竖/手机横/平板竖）+ 触摸模拟：值守台无溢出、退出按钮与主界面按钮触控目标 ≥44px |
+| `tools/check.js` | 串联全部检查（发布前必跑，五阶段） |
 | `tools/bump-version.js` | 版本号五点统一升级（幂等 + 回读校验） |
+| `tools/build-dist.js` | 统一打包封装：中间产物进 `os.tmpdir()`（避 Synology 盘 rcedit 失败）、产物自动回落项目 `dist/` |
+| `tools/ui-shot.js`（`npm run uishot`） | **界面视觉审查**：真机渲染 8 张关键界面截图到 `.workbuddy/shots/`，用真实渲染结果驱动美观改造（v2.21.0 起） |
+
+> **铁律**：DOM 级门禁 + 语法检查 ≠ 流程可用。凡「启动→循环→退出」生命周期的功能，
+> 必须有假设备真机冒烟（`guardsmoke`/`audiosmoke`/`micsmoke`）才算验证完成。
+> 历史三个真 Bug（值守崩溃、事件计数不刷新、转写崩溃）全部是「DOM 齐了但一跑就崩」，44 项 DOM 门禁一个都没抓到。
 
 ## 六、文档索引
 
