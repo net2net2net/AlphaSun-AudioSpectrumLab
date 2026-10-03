@@ -191,6 +191,22 @@
   .gLeft .gLamp span{font-size:12px}
   .gLeft .gInfo{padding:6px 9px;font-size:10.5px}
   .gLeft .gEvList{flex:1;min-height:0;max-height:none}
+  /* v2.24.1 应用内确认对话框：替代 window.confirm。
+     实测（tools/_probe-confirm.js）：Electron 渲染进程里 window.confirm **存在但永远静默返回 false**，
+     对话框根本不显示 → 所有「清理/清空」按钮点下去直接 return，功能形同虚设
+     （v2.18.0 只根治了 window.prompt，漏了 confirm）。本组件是真能用的确认框。*/
+  .askmask{position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;
+    background:rgba(2,6,16,.72);backdrop-filter:blur(3px);padding:20px}
+  .askbox{width:min(440px,94vw);background:linear-gradient(180deg,rgba(16,24,44,.98),rgba(11,17,33,.98));
+    border:1px solid rgba(90,170,255,.32);border-radius:14px;padding:18px 20px 16px;
+    box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .askttl{font-size:15px;font-weight:700;color:#eaf6ff;margin-bottom:8px}
+  .askmsg{font-size:13px;color:#a9c4e0;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+  .askbtns{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  .askbtns .cap2{min-width:88px;min-height:40px;font-size:13px}
+  .cap2.danger{background:rgba(190,40,60,.24);border-color:rgba(255,90,110,.55);color:#ffd0d6}
+  .cap2.danger:hover{background:rgba(210,50,72,.36)}
+  @media(max-width:480px){.askbtns{flex-direction:column-reverse}.askbtns .cap2{width:100%}}
   .gWave{position:absolute;inset:0;width:100%;height:100%;border-radius:12px;background:rgba(0,0,0,.28);
     border:1px solid rgba(90,170,255,.16)}
   .gRing{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:132px;height:132px;z-index:3;pointer-events:none;border-radius:50%;
@@ -814,7 +830,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.24.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.24.1</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1857,7 +1873,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.24.0',APP_BUILD='20261003';
+const APP_VER='2.24.1',APP_BUILD='20261003';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';
   // v2.21.0：页脚版本号原为硬编码静态文本（曾停留在 v2.12.0，落后 9 个版本），
   // 逃过了 validate 的「五点版本一致性」校验（该校验只覆盖 APP_VER/appVer span/package/sw/gradle）。
@@ -3239,7 +3255,7 @@ function exportCSV(){const f=hist;if(!f.length){alert('暂无缓存数据');retu
     '"'+String(x.verd).replace(/"/g,'')+'"'].join(',')).join('\n');
   const a=document.createElement('a');a.download='AlphaSun-数据-'+Date.now()+'.csv';a.href=URL.createObjectURL(new Blob([head+body],{type:'text/csv'}));a.click();pushAct([{k:'CSV',v:null}],'已导出数据');}
 function clearHist(){const n=(typeof histCount!=='undefined'&&histCount!=null)?histCount.textContent:'未知';
-  if(!confirm('确认清理全部本地历史缓存？\n当前缓存记录：'+n+' 条\n此操作不可恢复。'))return;dbClear().then(refreshCacheStats).catch(()=>{});pushAct([{k:'清理',v:null}],'历史已清空（'+n+' 条）');}
+  askConfirm('清理本地历史缓存','当前缓存记录：'+n+' 条\n此操作不可恢复。','确认清理').then(ok=>{if(!ok)return;dbClear().then(refreshCacheStats).catch(()=>{});pushAct([{k:'清理',v:null}],'历史已清空（'+n+' 条）');});}
 E.repBtn.addEventListener('click',exportReport);E.csvBtn.addEventListener('click',exportCSV);E.clrBtn.addEventListener('click',clearHist);
 // ---------- v2.3.0 自举标注：纠正表单开合 / 提交落盘 / 导出 JSON Lines ----------
 E.labBtn.addEventListener('click',()=>{const open=E.labForm.style.display==='none';
@@ -4618,6 +4634,38 @@ function closeToolPanel(maskId){
     if(maskId==='alertMask'&&(alOn||(typeof GUARD!=='undefined'&&GUARD&&GUARD.ev)))alStopAll('关闭面板'); // 停止值守
   }catch(e){diagAdd('warn','关闭面板停止采集异常：'+((e&&e.message)||e));}
 }
+/* ---------- v2.24.1 应用内确认框（替代 window.confirm）----------
+   实测：Electron 渲染进程里 window.confirm 存在但**永远静默返回 false**、对话框不显示，
+   于是所有 confirm() 保护的「清理/清空」按钮点了直接 return —— 功能形同虚设。
+   本实现是真能用的确认框：Promise<boolean>，支持 Esc=取消、Enter=确定、点遮罩=取消。*/
+let askResolve=null;
+function askConfirm(title,msg,okText,danger){
+  return new Promise(res=>{
+    const mk=$('askMask');if(!mk){res(true);return;}          // 兜底：无节点则视为确认
+    const tt=$('askTtl'),mg=$('askMsg'),yb=$('askYes');
+    if(tt)tt.textContent=title||'请确认';
+    if(mg)mg.textContent=msg||'';
+    if(yb){yb.textContent=okText||'确定';yb.className='cap2'+(danger===false?'':' danger');}
+    askResolve=res;mk.style.display='flex';
+    setTimeout(()=>{try{yb&&yb.focus();}catch(_){}},30);
+  });
+}
+function askClose(v){
+  const mk=$('askMask');if(mk)mk.style.display='none';
+  const r=askResolve;askResolve=null;if(r)r(!!v);
+}
+(function(){
+  const mk=$('askMask');if(!mk)return;
+  const yb=$('askYes'),nb=$('askNo');
+  if(yb)yb.addEventListener('click',()=>askClose(true));
+  if(nb)nb.addEventListener('click',()=>askClose(false));
+  mk.addEventListener('click',e=>{if(e.target===mk)askClose(false);});
+  addEventListener('keydown',e=>{
+    if(!mk||mk.style.display==='none')return;
+    if(e.key==='Escape'){askClose(false);}
+    else if(e.key==='Enter'){askClose(true);}
+  });
+})();
 ['envClose','alertClose','asrClose'].forEach(c=>{const b=$(c);if(b)b.addEventListener('click',()=>{closeToolPanel(b.closest('.toolmask')?b.closest('.toolmask').id:(c==='envClose'?'envMask':c==='alertClose'?'alertMask':'asrMask'));});});
 ['envMask','alertMask','asrMask'].forEach(id=>{const m=$(id);if(m)m.addEventListener('click',e=>{if(e.target===m)closeToolPanel(id);});});
 addEventListener('keydown',e=>{if(e.key==='Escape'){['envMask','alertMask','asrMask'].forEach(id=>{const m=$(id);if(m&&m.classList.contains('on'))closeToolPanel(id);});}});
@@ -5165,6 +5213,18 @@ function alEvAnalysis(ev){
   L.push('（声级为相对满量程数字电平，未经声级计校准，不作合规判定）');
   return L.join('\n');
 }
+/* v2.24.1 释放事件关联的 objectURL：清空事件列表前必须调用，
+   否则 createObjectURL 产生的 Blob 引用不回收，长时值守会持续涨内存。*/
+function alEvReleaseMedia(){
+  for(const ev of GUARD.evs){
+    for(const k of ['shotUrl','videoUrl']){
+      const u=ev[k];if(!u)continue;
+      try{URL.revokeObjectURL(u);}catch(_){}
+      ev[k]=null;
+    }
+    ev.shotBlob=null;ev.videoBlob=null;
+  }
+}
 function alRenderEvents(){
   const box=$('gEvList');if(!box)return;box.innerHTML='';
   if(!GUARD.evs.length){const d=document.createElement('div');d.className='gEmpty';
@@ -5447,8 +5507,24 @@ async function alPauseToggle(){
 $('gPause').addEventListener('click',()=>{alPauseToggle().catch(()=>{});});
 $('gExit').addEventListener('click',()=>alStopAll('退出值守台'));
 $('gEvExpAll').addEventListener('click',alExpAll);
-$('gEvClear').addEventListener('click',()=>{if(!GUARD.evs.length){toast('列表已空');return;}
-  GUARD.evs=[];GUARD.seq=0;alRenderEvents();toast('已清空事件列表');});
+$('gEvClear').addEventListener('click',()=>{
+  if(!GUARD.evs.length){toast('事件列表已空');return;}
+  // v2.24.1：清空事件前先统计落盘媒体（wav/jpg/webm），如实告知用户「列表会清、磁盘文件保留」
+  //（磁盘文件在用户下载目录，属用户个人资料，不擅自删除）；同时释放 objectURL 防内存泄漏。
+  let nFile=0;
+  for(const ev of GUARD.evs){if(ev.wavPath)nFile++;if(ev.shotUrl)nFile++;if(ev.videoUrl)nFile++;}
+  const msg='将清空 '+GUARD.evs.length+' 条告警/预警事件记录（统计复位、列表清空）。'
+    +(nFile?('\n\n⚠ 这些事件关联的 '+nFile+' 个录音/抓拍/录像文件仍保留在本机下载目录，'
+      +'不会随本次清空删除；如需删除请到下载目录手动处理。'):'（无关联媒体文件）')
+    +'\n\n此操作不可恢复。';
+  askConfirm('清空事件数据',msg,'确认清空').then(ok=>{
+    if(!ok)return;
+    alEvReleaseMedia();          // 释放 objectURL，避免内存泄漏
+    GUARD.evs=[];GUARD.seq=0;
+    alRenderEvents();alPaintTop();
+    toast('已清空 '+'事件数据'+(nFile?('（'+nFile+' 个媒体文件仍在下载目录）'):''));
+  });
+});
 $('alertNotifyBtn').addEventListener('click',()=>{const c=$('alertNotifyCfg');
   if(c){c.style.display=(c.style.display==='none'||!c.style.display)?'block':'none';alNtFill();}});
 $('ntSave').addEventListener('click',()=>{alNtSave();toast('推送配置已保存到本机');});
@@ -5469,7 +5545,8 @@ $('alertExpLog').addEventListener('click',()=>{const L=$('alertLog');if(!L||!L.c
   let t='AlphaSun 声波警戒值守日志\n生成时间 '+new Date().toLocaleString()+'\n\n';for(const c of L.children)t+=c.textContent+'\n';
   l2Dl(new Blob([t],{type:'text/plain'}),'alert_log_'+toolTs()+'.txt');});
 $('alertClrLog').addEventListener('click',()=>{const L=$('alertLog');if(!L)return;
-  if(L.children.length&&!confirm('确定清空值守日志？'))return;L.innerHTML='';toast('已清空值守日志');});
+  if(!L.children.length){toast('值守日志已空');return;}
+  askConfirm('清空值守日志','将删除本机当前 '+L.children.length+' 条值守日志记录，此操作不可恢复。','确认清空').then(ok=>{if(!ok)return;L.innerHTML='';toast('已清空值守日志');});});
 $('gMediaX').addEventListener('click',guardMediaClose);
 $('gRotL').addEventListener('click',()=>guardMediaRot(-90));
 $('gRotR').addEventListener('click',()=>guardMediaRot(90));
@@ -6117,6 +6194,17 @@ resize();frame();
   </div>
   <!-- v2.17.0 声波警戒值守台（全屏）。
        必须 body 直属：.app 有 z-index + zoom 会形成层叠上下文，放进去会被主画布遮挡。 -->
+  <!-- v2.24.1 应用内确认对话框（替代失效的 window.confirm） -->
+  <div class="askmask" id="askMask" style="display:none" role="dialog" aria-modal="true" aria-labelledby="askTtl">
+    <div class="askbox">
+      <div class="askttl" id="askTtl">请确认</div>
+      <div class="askmsg" id="askMsg"></div>
+      <div class="askbtns">
+        <button class="cap2" id="askNo">取消</button>
+        <button class="cap2 danger" id="askYes">确定</button>
+      </div>
+    </div>
+  </div>
   <div id="guardScreen" class="guard" style="display:none">
     <div class="gTop">
       <div class="gClock"><span id="gTime" class="gT">--:--:--</span><span id="gDate" class="gD">----</span></div>
@@ -6128,7 +6216,12 @@ resize();frame();
       <button class="gExit" id="gExit">退出值守 Esc</button>
     </div>
     <div class="gMain">
-      <div class="gLeft">
+      <div class="gCenter">
+        <canvas id="gWave" class="gWave"></canvas>
+        <canvas id="gLevel" class="gLevel"></canvas>
+        <canvas id="gRing" class="gRing"></canvas>
+      </div>
+<div class="gLeft">
         <div class="gLeftHead">
           <button class="cap2" id="gEvExpAll" title="导出全部事件为 txt/csv">导出全部</button>
           <button class="cap2" id="gEvClear" title="清空事件列表">清空列表</button>
@@ -6141,11 +6234,6 @@ resize();frame();
           <div>事件<b id="gEvNum">0</b></div></div>
         <div class="gLeftTitle">事件日志</div>
         <div class="gEvList" id="gEvList"></div>
-      </div>
-      <div class="gCenter">
-        <canvas id="gWave" class="gWave"></canvas>
-        <canvas id="gLevel" class="gLevel"></canvas>
-        <canvas id="gRing" class="gRing"></canvas>
       </div>
     </div>
     <div class="gMedia" id="gMedia" style="display:none">
