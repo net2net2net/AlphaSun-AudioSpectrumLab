@@ -122,11 +122,21 @@
   .asrwave{display:block;width:100%;height:72px}
   .asrwavemeta{position:absolute;right:8px;top:6px;display:flex;gap:10px;font-size:11px;color:#9fd7ff;
     background:rgba(4,10,20,.55);border-radius:6px;padding:1px 6px}
-  /* v2.19.0：语音转写大窗口 */
-  .asrMask .toolcard{max-width:min(1080px,96vw);height:min(92vh,880px)}
-  .asrMask .toolbody{height:100%}
-  .asrMask .asrout{flex:1;min-height:0}
-  .asrMask .asrwavebox{flex:none}
+  /* v2.19.0：语音转写大窗口
+     ⚠ v2.20.0 三处修正（实测诊断后）：
+       ① 选择器原写 `.asrMask .xxx`，但实际 class 是 `toolmask`（id 才是 asrMask）→ 从未生效。
+       ② 滚动只能有一层：.toolcard 基础样式已有 `max-height:90vh;overflow:auto`，
+          若再给 .toolbody 加 overflow-y:auto 会产生双滚动条。故 body 不再独立滚动，
+          高度用 flex 填满剩余空间即可。
+       ③ asrout 给 min-height 保证文字稿区可读；波形框与操作行 flex:none 不被压缩，
+          底部说明行不再被 flex:1 挤出容器造成文字重叠。*/
+  #asrMask .toolcard{max-width:min(1080px,96vw);height:min(92vh,880px);display:flex;flex-direction:column}
+  #asrMask .toolhead{flex:none}
+  #asrMask .toolbody{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:2px}
+  #asrMask .asrout{flex:1 1 auto;min-height:140px;overflow-y:auto}
+  #asrMask .asrwavebox{flex:none}
+  #asrMask .toolrow{flex:none}
+  #asrMask .toolbody > .hint{flex:none}
   /* ---- v2.17.0 声波警戒值守台（全屏）---- */
   .guard{position:fixed;inset:0;z-index:200;background:radial-gradient(1200px 700px at 50% 0%,#071426 0%,#04070f 60%,#02040a 100%);
     display:flex;flex-direction:column;color:#dff1ff;font-family:var(--mono,Consolas,monospace)}
@@ -446,10 +456,14 @@
   .ov.clock .cm{font-size:12px;min-width:0;color:rgba(55,224,255,.60);text-shadow:none}
   @media(max-width:759px){.ov.clock{top:8px;padding:3px 9px}
     .ov.clock .cd{display:none}.ov.clock .ct{font-size:15px}.ov.clock .cm{font-size:10px}}
-  .hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  /* ⚠ v2.20.0 修正：原写作 `.hint{position:absolute;inset:0;…}`（主画布空态浮层），
+     但 `.hint` 是全项目通用类名，导致三个工具面板里所有静态说明文字都被绝对定位铺满
+     容器、互相重叠（转写面板底部说明浮到波形框上即由此而来）。
+     对策：收窄为 `#hint`（唯一真正的空态浮层容器），通用 .hint 回归静态文本。*/
+  #hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
     text-align:center;transition:opacity .4s;pointer-events:none}
-  .hint .b{font-size:18px;font-weight:600}
-  .hint .s{font-size:13px;color:var(--dim)}
+  #hint .b{font-size:18px;font-weight:600}
+  #hint .s{font-size:13px;color:var(--dim)}
   .level{position:absolute;left:16px;right:16px;bottom:14px;height:6px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden}
   .level i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gn),var(--am) 60%,var(--rd));transition:width .07s linear}
   /* v2.8.0：顶部横排信号处理链路图示（v2.5.0 需求④ .chain）已按用户要求移除，
@@ -773,7 +787,7 @@ body{overscroll-behavior:none}                      /* 移动端下拉刷新不�
   <div class="toolbar">
     <div class="brand">
       <div class="logo"></div>
-      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.19.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
+      <div><h1>AlphaSun 声波分析仪</h1><div class="sub">AUDIO SPECTRUM LAB · PRO · <span id="appVer">v2.21.0</span></div><div class="author">作者 阳光 net2net2net · VX net2net</div></div>
     </div>
     <!-- v2.5.0 需求②：两枚主操作按钮规格统一（同高 52px / 同圆角 13px / 同阴影量级）；
          需求①：毫秒时钟已移入下方声波可视化区顶部正中，此处只留操作区 -->
@@ -1816,7 +1830,7 @@ const OTHER_PROTO=[
 ];
 function clamp01(x){return x<0?0:x>1?1:x;}
 // 「其他声音细化」展示阈值：类置信度 + 模板得分。两处渲染必须共用，否则会出现自相矛盾的 UI
-const APP_VER='2.19.0',APP_BUILD='20261003';
+const APP_VER='2.21.0',APP_BUILD='20261003';
 try{const av=document.getElementById('appVer');if(av)av.textContent='v'+APP_VER+'（build '+APP_BUILD+'）';}catch(e){}
 // ---- 系统监视（需求#4：顶栏 CPU/内存。桌面版经 preload 桥取真实系统值；网页/移动端无权限显示 —） ----
 function sysTick(){
@@ -3229,6 +3243,27 @@ function setupASR(){const SR=window.SpeechRecognition||window.webkitSpeechRecogn
     recog.onerror=()=>{asrErr=true;};   // 失败原因(无网络/权限)交由 analyzeFrame 统一显「语音识别失败」
     recog.onend=()=>{if(running){try{recog.start();asrStartT=performance.now();}catch(_){}}};}catch(_){recog=null;}}
 
+/* v2.20.0 麦克风占用全链路整改 —— 统一释放「幽灵麦克风」。
+   背景（用户实测）：点「开始采集」报「❌ 麦克风被其他程序占用」，且环境采集/
+   值守/转写全部连带失败。根因是二级台「实时波形」会私自 getUserMedia 开一路麦克风
+   存进 L2.liveStream（l2LiveOwnMic），而它仅在 l2LiveFreeze/l2LiveExit/关面板时释放；
+   主采集 start() 与 env/guard/asr 三处采集互不知情，一旦该路流残留，所有模块
+   getUserMedia 都会撞上它 → NotReadableError（麦克风被占用）。
+   对策：任何采集启动前，先把「非本模块持有」的残留流统一停掉，避免自己占自己。*/
+function _stopTracks(st){try{if(st&&st.getTracks)st.getTracks().forEach(t=>{try{t.stop();}catch(_){}});}catch(_){}}
+/* v2.20.0 跨模块麦克风解锁：keep='main'|'env'|'guard'|'asr'|null（发起者）。
+   启动任一采集前，释放「所有其它模块处于非活跃态却仍残留」的麦克风流 + 二级台自开流。
+   这是「一个模块失败/残留 → 锁死其它全部采集」的根治点。keepLive 保留二级台实时波形用流。*/
+function releaseGhostMic(keep){
+  if(typeof L2!=='undefined'&&L2&&!L2.liveMode){
+    _stopTracks(L2.liveStream);L2.liveStream=null;L2.micNodeStream=null;}
+  try{_stopTracks(L2&&L2.recStream&&L2.recOwnStream?L2.recStream:null);}catch(_){}
+  // 其它模块：非活跃却残留流 → 释放（活跃的尊重，不夺正在用的设备）
+  try{if(keep!=='main'&&!running)_stopTracks(stream);}catch(_){}
+  try{if(keep!=='env'&&!envOn&&!envListening)_stopTracks(envStream);}catch(_){}
+  try{if(keep!=='guard'&&!alOn)_stopTracks(alStream);}catch(_){}
+  try{if(keep!=='asr'&&!asrOn)try{_stopTracks(typeof ASR_CAP!=='undefined'?ASR_CAP.stream:null);}catch(_){}}catch(_){}
+}
 // 麦克风采集：三级约束降级（严格→保留设备选择的宽松→裸 audio:true），最大化设备兼容性
 async function openMic(){const base={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
   const dev=micDeviceId?Object.assign({},base,{deviceId:{exact:micDeviceId}}):base;
@@ -3247,6 +3282,8 @@ async function start(){
     E.status.textContent='当前环境不支持麦克风（navigator.mediaDevices 不可用，请在 https/localhost 或支持的浏览器中打开）';return;}
   try{
     if(!micDevs.length)await refreshMicDevs();
+    // v2.20.0：启动前清掉其它模块的残留麦克风流，避免自己占自己导致 NotReadableError
+    releaseGhostMic('main');
     E.status.textContent='请求麦克风权限…';
     stream=await openMic();
   audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state!=='running')audioCtx.resume().catch(()=>{});srcNode=audioCtx.createMediaStreamSource(stream);gainNode=audioCtx.createGain();gainNode.gain.value=parseFloat(E.sens.value)||1;
@@ -3429,10 +3466,10 @@ function l2LiveAnalyser(){const c=l2Ctx();
 function l2LiveOwnMic(){
   if(!L2.liveMode||L2.micAsk||L2.liveStream)return;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
-  L2.micAsk=true;
+  L2.micAsk=true;   // v2.20.0：同步置位（原先在 .then 链末才复位，慢设备下多帧会并发开多路流 → 反而自己占死麦克风）
   navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}})
     .then(st=>{L2.liveStream=st;}).catch(()=>{l2Finfo('📈 实时波形：未取得麦克风（可点击「录制」或顶部「开始采集」）');})
-    .then(()=>{L2.micAsk=false;});
+    .then(()=>{L2.micAsk=false;},()=>{L2.micAsk=false;});
 }
 // 返回：'elem'=播放中已载入音频 / 'mic'=实时输入 / 'none'=暂无源
 function l2LiveSrc(){
@@ -4539,7 +4576,11 @@ function envSampleSpec(){
 async function envStartCapture(){
   if(!(window.AudioWorkletNode)){toast('❌ 当前环境不支持 AudioWorklet，无法采集');return false;}
   const cons=micDeviceId?{deviceId:{exact:micDeviceId},echoCancellation:false,noiseSuppression:false,autoGainControl:false}:{echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+  // v2.20.0：启动前清其它模块残留流（keep='env' 尊重本模块；二级台实时若仍在跑亦不夺）
+  releaseGhostMic('env');
   envStream=await navigator.mediaDevices.getUserMedia({audio:cons});
+  // v2.20.0：getUserMedia 已成功但后续初始化可能抛错 → 失败必须释放，否则流泄漏锁死后续所有采集
+  try{
   envCtx=new(window.AudioContext||window.webkitAudioContext)();if(envCtx.state!=='running')envCtx.resume().catch(()=>{});
   await envCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([ASREC_SRC],{type:'application/javascript'})));
   const src=envCtx.createMediaStreamSource(envStream);
@@ -4559,6 +4600,8 @@ async function envStartCapture(){
   envSpecTmr=setInterval(envSampleSpec,200);
   try{const pv=localStorage.getItem(ENV_PLACE_KEY);if(pv&&!($('envPlace')||{}).value)$('envPlace').value=pv;}catch(_){}
   return true;
+  }catch(err){_stopTracks(envStream);envStream=null;try{if(envCtx&&envCtx.state!=='closed')envCtx.close().catch(()=>{});}catch(_){}envCtx=null;
+    throw err;}
 }
 /* ---------- 保存原始录音（地点 + 时间命名）---------- */
 async function envSaveBlob(blob,name,logIt){
@@ -5164,6 +5207,8 @@ function alTick(){
 async function alBegin(){
   try{$('alertStart').disabled=true;$('alertStop').disabled=false;
     const cons=micDeviceId?{deviceId:{exact:micDeviceId},echoCancellation:false,noiseSuppression:false,autoGainControl:false}:{echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+    // v2.20.0：启动前清其它模块残留流（keep='guard'）
+    releaseGhostMic('guard');
     alStream=await navigator.mediaDevices.getUserMedia({audio:cons});
     alCtx=new(window.AudioContext||window.webkitAudioContext)();if(alCtx.state!=='running')alCtx.resume().catch(()=>{});
     alAn=alCtx.createAnalyser();alAn.fftSize=2048;alSrc=alCtx.createMediaStreamSource(alStream);alSrc.connect(alAn);
@@ -5302,8 +5347,12 @@ function asrLoadScript(src){return new Promise((res,rej)=>{
   const s=document.createElement('script');s.src=src;s.onload=res;
   s.onerror=()=>rej(new Error('运行时加载失败：'+src));document.head.appendChild(s);});}
 async function asrCapStart(){
+  // v2.20.0：启动前清其它模块残留流（keep='asr'）
+  releaseGhostMic('asr');
   const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1,sampleRate:16000}});
   ASR_CAP.stream=st;ASR_CAP.chunks=[];ASR_CAP.len=0;ASR_CAP.segBase=0;
+  // v2.20.0：getUserMedia 已成功但后续初始化可能抛错 → 失败必须释放，否则流泄漏
+  try{
   const Ctx=window.AudioContext||window.webkitAudioContext;
   const ctx=ASR_CAP.ctx=new Ctx();
   if(ctx.state!=='running')await ctx.resume().catch(()=>{});
@@ -5325,6 +5374,7 @@ async function asrCapStart(){
   };
   src.connect(node);node.connect(mute);mute.connect(ctx.destination);
   return st;
+  }catch(err){asrCapStop();throw err;}
 }
 function asrCapStop(){
   try{if(ASR_CAP.proc){ASR_CAP.proc.port.onmessage=null;ASR_CAP.proc.disconnect();}}catch(_){}
@@ -5581,8 +5631,11 @@ async function asrBegin(){
   asrFinal='';asrSents=[];asrT0=new Date();
   const O=$('asrOut');if(O)O.textContent='';
   try{await asrCapStart();}catch(e){
+    // v2.20.0：失败必须释放已开启的流（asrCapStart 内部也会释放，这里兜底）+ 复位按钮，否则麦克风被永久占用
+    try{asrCapStop();}catch(_){}
     diagAdd('error','麦克风采集启动失败：'+((e&&e.message)||e));
-    toast('❌ 无法访问麦克风');$('asrStat').textContent='❌ 麦克风不可用';return;}
+    toast('❌ 无法访问麦克风');$('asrStat').textContent='❌ 麦克风不可用';
+    $('asrStart').disabled=false;$('asrStop').disabled=true;return;}
   asrWaveStart();asrOn=true;
   $('asrStart').disabled=true;$('asrStop').disabled=false;
   await asrDetect();
