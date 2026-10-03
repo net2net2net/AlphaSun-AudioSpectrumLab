@@ -7,8 +7,8 @@ android {
         applicationId "com.alphasun.audiolab"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 39
-        versionName "2.23.1"
+        versionCode 40
+        versionName "2.23.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,7 +16,7 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    /* v2.23.1：发布签名。密钥库与口令只存在于本机（已加入 .gitignore，绝不入库）。
+    /* v2.23.2：发布签名。密钥库与口令只存在于本机（已加入 .gitignore，绝不入库）。
        若本机没有 alphasun-release.jks，Release 构建会自动退化为未签名，Debug 不受影响。 */
     signingConfigs {
         release {
