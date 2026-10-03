@@ -5,6 +5,72 @@
 
 
 
+## v2.23.0（2026-10-03）—— 麦克风占用根因整改 II：SpeechRecognition 会话泄漏（第二轮复盘）
+
+### 复盘：为什么 v2.20.0 的修复没有解决问��
+
+v2.20.0 用户报告「点开始采集 → ❌ 麦克风被其他程序占用，且各采集全错」，我定位到
+「二级台 L2.liveStream 幽灵流」并做了 `releaseGhostMic()` 整改。**但用户报告问题复发。**
+
+复盘后确认：**上轮我并没有确证根因就宣称修复，这是我的失误。** 本轮通过静态审计 + 探针实测，
+找到了**另一个被完全遗漏的麦克风占用源**。
+
+### 真凶：SpeechRecognition 会话（recog）—— 独立于 MediaStream 的占麦源
+
+探针实测（本机 Electron 内 `SpeechRecognition 可用 = true`）：主采集 `start()` 内部会
+`setupASR()` 新建一个 Web Speech 识别会话并 `recog.start()`，**它会独占麦克风**。
+而 v2.20.0 的 `releaseGhostMic()` 只管理 `MediaStream`（各种 `stream.getTracks().stop()`），
+**完全不涉及 `recog`** —— 这是上轮整改的致命遗漏。
+
+三个叠加缺陷：
+
+1. **会话泄漏**：`setupASR()` 每次调用都 `new SR()` 新建会话，但主采集 `stop()` 只
+   `recog.stop()` **从不置 `recog=null`** → 反复开关采集会堆积多个「已启动未释放」的识别会话。
+2. **释放竞态**：`speechRecognition.stop()` 是**异步**的，底层释放麦克风有延迟；
+   `stop()` 后立刻 `getUserMedia` 会撞上尚未释放的会话 → `NotReadableError`。
+3. **模块踩踏**：`recog` 被主采集与语音转写**共用**，`asrBeginWeb()` 覆写它的 `onend` 为
+   「`asrOn` 时重启」，与主采集的 `onend`（`running` 时重启）互相覆盖。
+
+### 整改（index.html 6 处）
+
+- **新增 `recogStopSession()`**：真正终止识别会话 —— `abort()`（比 `stop()` 更硬、立即释放）
+  + `stop()` + 摘除全部事件回调 + **置 `recog=null`**。作为所有释放路径的统一出口。
+- `setupASR()` 改为**先 `recogStopSession()` 终止旧会话再新建**，杜绝堆积。
+- 主采集 `stop()` 改用 `recogStopSession()`。
+- `releaseGhostMic()` 纳入 `recog` 释放（切换任何采集时顺带清掉识别会话）。
+- `asrStop()` / `asrAutoTick()` 的引擎切换统一走 `recogStopSession()`（全项目 `recog.stop()` 裸调用归零）。
+
+### 错误提示改进（帮用户下次自查）
+
+`NotReadableError` 文案从「请关闭正在使用麦克风的软件」改为**明确区分内外**：
+「本应用已自动清理内部残留（v2.23.0）。若仍报错，通常是其它软件正在使用麦克风：请关闭
+微信/钉钉/Teams/会议/录屏等，或退出本应用后重启电脑再试」。
+
+### 防回归
+
+- `tools/mic-smoke.js` 新增 **[3.5] 反复 6 轮采集开关**断言：反复开关后不堆积会话、回到停止态、零 pageerror。
+  （假设备不独占、无法复现真机 NotReadableError，但可守住「反复 new 会话不置 null」这类逻辑泄漏。）
+
+### 门禁（全绿，零回归）
+
+`check` 五阶段 · `qa` **44/44** · `guardsmoke` **25/25** · `audiosmoke` **39/39** · `micsmoke` **9/9** · `respgate` **34/34**。
+
+### 交付（MD5）
+
+- Windows 便携版（**单文件**）`AlphaSun-AudioLab-2.23.0-portable.exe`（68.0 MB）：`b2311c575d26c1298273d35e520e8536`
+- Linux x64 `AlphaSun-AudioLab-2.23.0-linux-x64.tar.gz`（99.0 MB）：`d2ad93b0bf8ce69078e3bbd634c07e1b`
+- Android 自签 release `AlphaSun-AudioLab-2.23.0.apk`（6.0 MB，versionCode 38）：`6b4f464a70aadf4a89057c6b3a041824`
+- 旧版本产物已清理：`dist/` 仅保留当前版三件（v2.22.0 已删，均已发布到 Release 且可再生）。
+- 三处源码 MD5 一致（根 / `www/` / Android assets）。
+
+### 方法论教训（最重要）
+
+**上一轮我在没有确证根因的情况下就宣称「已根治」，这是错的。** 排查「设备被占用」类问题时，
+不能只找一个占用源就收工 —— 必须**穷举所有持有该资源的句柄**（本例中 MediaStream 有 7 处，
+但还有独立于它的 SpeechRecognition 会话），并对每个来源逐一验证释放。
+假设备不独占、无法自动复现真机冲突（已在 v2.20.0 诚实标注），但**静态审计 + 探针实测
+能定位到逻辑泄漏点**，二者结合才靠谱。
+
 ## v2.22.0（2026-10-03）—— 页脚版本号根治 + DSP 链路条可读性 + 旧文档/过程文档清理
 
 ### 修复 ①：页脚版本号落后 9 个版本（v2.0.0 事故复发，根治）
