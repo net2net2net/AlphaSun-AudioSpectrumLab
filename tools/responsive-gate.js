@@ -158,9 +158,9 @@ const VIEWPORTS = [
       // v2.24.0：暂停按钮必须在「退出值守」左侧，且左侧栏在波形左侧（x 小于波形中心）
       chk('桌面：暂停按钮位于退出值守左侧', !!(g.pause && g.exit && g.pause.r <= g.exit.x + 2),
         g.pause ? ('pause.right=' + g.pause.r + ' exit.x=' + g.exit.x) : 'pause 按钮缺失');
-      chk('桌面：左侧栏在波形窗口左侧（不遮挡主波形）',
-        !!(g.left && g.wave && g.left.r <= g.wave.x + 4),
-        g.left && g.wave ? ('left.right=' + g.left.r + ' wave.x=' + g.wave.x) : '缺元素');
+      chk('桌面：日志/状态栏在波形窗口右侧（v2.24.1 左右调换后）',
+        !!(g.left && g.wave && g.left.x >= g.wave.x + g.wave.w - 4),
+        g.left && g.wave ? ('left.x=' + g.left.x + ' wave.right=' + (g.wave.x + g.wave.w)) : '缺元素');
     }
   }
 
