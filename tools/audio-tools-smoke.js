@@ -200,8 +200,20 @@ function chk(name, ok, detail) {
     (document.getElementById('gState') || {}).textContent === '告警'));
   await page.click('#gEvExpAll'); await page.waitForTimeout(600);
   chk('导出全部事件（有数据，txt+csv）未崩溃', true);
-  await page.click('#gEvClear'); await page.waitForTimeout(300);
-  chk('清空事件列表', await page.evaluate(() =>
+  // v2.24.1：清空事件改为应用内确认框（Electron 的 window.confirm 永远返回 false 不可用）
+  await page.click('#gEvClear'); await page.waitForTimeout(500);
+  const askShown = await page.evaluate(() => {
+    const m = document.getElementById('askMask');
+    return !!(m && m.style.display !== 'none');
+  });
+  chk('点「清空事件」弹出应用内确认框（不再用失效的 window.confirm）', askShown, 'askMask 显示=' + askShown);
+  await page.click('#askNo'); await page.waitForTimeout(400);
+  const notCleared = await page.evaluate(() =>
+    parseInt((document.getElementById('gEvNum') || {}).textContent || '0', 10) !== 0);
+  chk('确认框点「取消」不清空（数据保留）', notCleared, '事件数仍非 0=' + notCleared);
+  await page.click('#gEvClear'); await page.waitForTimeout(400);
+  await page.click('#askYes'); await page.waitForTimeout(500);
+  chk('确认框点「确定」后事件清空、统计归零', await page.evaluate(() =>
     parseInt((document.getElementById('gEvNum') || {}).textContent || '0', 10) === 0));
   await page.click('#gExit'); await page.waitForTimeout(1000);
   await page.click('#alertClose'); await page.waitForTimeout(300);
