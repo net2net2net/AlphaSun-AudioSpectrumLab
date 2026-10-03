@@ -136,5 +136,6 @@ node tools/check.js     # 一键自检：validate + 语法 + 算法自检 + 三�
 - `过程文档.md` —— 开发/构建过程细节与平台差异
 - `docs/架构说明.md` —— 代码结构、关键算法、数据结构与崩溃防线
 - `docs/测试与回归.md` —— 各测试脚本用途、运行方式与踩坑
-- `docs/iOS-macOS-构建指南.md` —— Mac 端构建步骤
+- `docs/iOS-macOS-构建指南.md` —— Mac 端构建步骤 + iOS 横竖屏/触摸适配说明
+- `docs/prd-voice-incremental.md` —— **归档件**：离线 WASM STT 路线历史 PRD（实际未采用该路线，详见文首归档说明）
 - `CHANGELOG.md` —— 版本演进记录（每轮迭代追加）
