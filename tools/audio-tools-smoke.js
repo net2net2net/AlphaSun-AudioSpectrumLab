@@ -4,7 +4,7 @@
  *   ① 环境音频采集：模式切换 / 开始 / 停止 / 保存 / 评估报告 / 导出报告 / 导出日志
  *   ② 声波警戒值守：开始 / 停止 / 退出 / 推送设置展开 / 保存配置 / 发送测试 / 导出日志
  *                   + 全屏值守台：导出全部 / 清空列表
- *   ③ 会议语音转写：开始 / 停止 / 复制 / 导出 / 保存录音 / 云端设置 / 模式切换 / 语言切换
+ *   ③ 语音转写：开始 / 停止 / 复制 / 导出 / 保存录音 / 云端设置 / 模式切换 / 语言切换
  *
  * 为什么需要它：qa-gate 只能证明 DOM 长齐、guard-smoke 只覆盖值守+转写两条主录音链路，
  * 用户反馈「点了某些按钮会崩溃」——导出/保存/推送/事件列表等操作此前从没真机跑过，
@@ -206,12 +206,17 @@ function chk(name, ok, detail) {
   await page.click('#gExit'); await page.waitForTimeout(1000);
   await page.click('#alertClose'); await page.waitForTimeout(300);
 
-  // ============ ③ 会议语音转写 ============
-  console.log('\n========== ③ 会议语音转写 ==========');
-  await openTool('会议语音转写');
+  // ============ ③ 语音转写 ============
+  console.log('\n========== ③ 语音转写 ==========');
+  await openTool('语音转写');
   chk('转写面板已打开', await visible('asrMask'));
 
   console.log('\n[3.1] 模式/语言切换（触发引擎探测，不崩溃）');
+  chk('默认模式为 auto（优先云端、自动升降级）', await page.evaluate(() =>
+    (document.getElementById('asrMode') || {}).value === 'auto'));
+  await page.selectOption('#asrMode', 'auto'); await page.waitForTimeout(800);
+  chk('auto 模式引擎探测完成（非「检测中」）', await page.evaluate(() =>
+    (document.getElementById('asrEng').textContent || '').indexOf('检测中') < 0));
   await page.selectOption('#asrMode', 'local'); await page.waitForTimeout(800);
   chk('切到本地模式后引擎探测完成（非「检测中」）', await page.evaluate(() =>
     (document.getElementById('asrEng').textContent || '').indexOf('检测中') < 0));
