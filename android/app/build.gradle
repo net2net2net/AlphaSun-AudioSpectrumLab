@@ -7,8 +7,8 @@ android {
         applicationId "com.alphasun.audiolab"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 32
-        versionName "2.17.1"
+        versionCode 33
+        versionName "2.18.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +16,24 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    /* v2.18.0：发布签名。密钥库与口令只存在于本机（已加入 .gitignore，绝不入库）。
+       若本机没有 alphasun-release.jks，Release 构建会自动退化为未签名，Debug 不受影响。 */
+    signingConfigs {
+        release {
+            def ks = file('../alphasun-release.jks')
+            if (ks.exists()) {
+                storeFile ks
+                storePassword 'alphasun2026'
+                keyAlias 'alphasun'
+                keyPassword 'alphasun2026'
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (file('../alphasun-release.jks').exists()) { signingConfig signingConfigs.release }
         }
     }
 }
