@@ -89,16 +89,17 @@ const VIEWPORTS = [
     const g = await page.evaluate(() => {
       const gs = document.getElementById('guardScreen');
       gs.style.display = 'flex';
-      // 注意：gTop / gBottom 是 class 不是 id，gWave / gRing / gExit 才是 id
+      // 注意：gTop / gLeft 是 class 不是 id，gWave / gRing / gExit / gPause 才是 id
+      // v2.24.0：.gSide/.gBottom 已重构为 .gLeft（含状态灯 + 事件日志，顶部两按钮）
       const R = sel => {
         const e = sel[0] === '.' ? document.querySelector(sel) : document.getElementById(sel);
         const r = e ? e.getBoundingClientRect() : null;
         return r ? { x: +r.x.toFixed(0), y: +r.y.toFixed(0), w: +r.width.toFixed(0), h: +r.height.toFixed(0), b: +r.bottom.toFixed(0), r: +r.right.toFixed(0) } : null;
       };
-      const side = document.querySelector('.gSide');
+      const side = document.querySelector('.gLeft');
       const inner = gs.firstElementChild ? gs.getBoundingClientRect() : null;
       const out = {
-        top: R('.gTop'), main: R('.gMain'), bottom: R('.gBottom'), exit: R('gExit'),
+        top: R('.gTop'), main: R('.gMain'), left: R('.gLeft'), bottom: R('.gEvList'), exit: R('gExit'), pause: R('gPause'),
         ring: R('gRing'), wave: R('gWave'),
         sideDir: side ? getComputedStyle(side).flexDirection : null,
         vw: window.innerWidth, vh: window.innerHeight,
@@ -144,16 +145,22 @@ const VIEWPORTS = [
         bad.length ? bad.map(([k, v]) => k + '=' + v.h + 'x' + v.w).join(', ') : '全部达标(' + tt.length + ')');
     }
 
-    // 分视口的布局专项
+    // 分视口的布局专项（v2.24.0：左侧栏 .gLeft 承载状态灯 + 事件日志，底部事件区已并入左栏）
     if (vp.key.indexOf('手机竖屏') === 0) {
-      chk('手机竖屏：三色灯改为横排（窄屏布局生效）', g.sideDir === 'row', 'gSide flex-direction=' + g.sideDir);
+      chk('手机竖屏：左侧栏改为横排（窄屏布局生效）', g.sideDir === 'row', 'gLeft flex-direction=' + g.sideDir);
     }
     if (vp.key.indexOf('手机横屏') === 0) {
-      chk('手机横屏矮屏：事件区已收窄（≤34vh）', g.bottom && g.bottom.h <= Math.ceil(g.vh * 0.34) + 2,
-        'bottom 高=' + (g.bottom && g.bottom.h) + ' 34vh=' + Math.ceil(g.vh * 0.34));
+      chk('手机横屏矮屏：事件列表已收窄（≤20vh）', g.bottom && g.bottom.h <= Math.ceil(g.vh * 0.20) + 2,
+        '事件列表高=' + (g.bottom && g.bottom.h) + ' 20vh=' + Math.ceil(g.vh * 0.20));
     }
     if (vp.key.indexOf('桌面') === 0) {
-      chk('桌面：三色灯保持竖排', g.sideDir === 'column', 'gSide flex-direction=' + g.sideDir);
+      chk('桌面：左侧栏保持竖排', g.sideDir === 'column', 'gLeft flex-direction=' + g.sideDir);
+      // v2.24.0：暂停按钮必须在「退出值守」左侧，且左侧栏在波形左侧（x 小于波形中心）
+      chk('桌面：暂停按钮位于退出值守左侧', !!(g.pause && g.exit && g.pause.r <= g.exit.x + 2),
+        g.pause ? ('pause.right=' + g.pause.r + ' exit.x=' + g.exit.x) : 'pause 按钮缺失');
+      chk('桌面：左侧栏在波形窗口左侧（不遮挡主波形）',
+        !!(g.left && g.wave && g.left.r <= g.wave.x + 4),
+        g.left && g.wave ? ('left.right=' + g.left.r + ' wave.x=' + g.wave.x) : '缺元素');
     }
   }
 
