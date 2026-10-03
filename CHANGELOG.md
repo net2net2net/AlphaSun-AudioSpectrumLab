@@ -5,6 +5,53 @@
 
 
 
+## v2.19.0（2026-10-03）—— 语音转写改名 + 大窗口自动升降级 + 声波警戒值守台重构
+
+### ① 语音转写改名（全量）
+
+- 「会议语音转写」统一改名为「**语音转写**」：工具菜单项、面板按钮、模块标题、说明文案、诊断文本、弹出层 `title`、以及 `openTool` 分支全部同步改名（共 8 处）。
+- 门禁脚本（`qa-gate` / `audio-tools-smoke` / `guard-smoke`）同步改名，避免运行期找不到 `data-tool='语音转写'`。
+
+### ② 语音转写：大窗口 + 云/本地自动升降级（核心）
+
+- **大窗口**：转写弹窗改为 1080×880 大面板（`.asrMask .toolcard{max-width:min(1080px,96vw);height:min(92vh,880px)}`），波形区 `flex:1` 占满、转写文本可滚动，长时间实时转写不再拥挤。
+- **自动模式（默认）**：`asrMode` 新增 `auto`（默认 selected）。
+  - `asrBestEngine()` 按优先级探测最优引擎：**云端 DashScope（keyStatus）→ 本地 Vosk（离线模型/探测）→ 浏览器 Web Speech → 不支持**；
+  - `asrAutoTick()` 每 12 秒在转写进行中平滑切换：云端不可用自动降级本地/Web Speech，云端恢复自动升级回云端；
+  - 引擎徽标前缀「自动 · 」如实标注当前链路（实测默认态：`自动 · 引擎：Web Speech（浏览器在线）`）。
+- **实时转写保证**：录音链路沿用 v2.17.x 的 AudioWorklet 直采（`index.html` 内已无 `ScriptProcessorNode`），`qa-gate` / `audio-tools-smoke` 均实测「开始转写 4 秒后计时在走、页面未崩溃」。
+
+### ③ 声波警戒值守台重构
+
+- **日志清理 + 导出**：`alertClrLog`（清空值守日志，confirm 二次确认）+ `alertExpLog`（导出）齐备，`guard-smoke` 已实测清空生效（条目归零、未崩溃）。
+- **左上电平表缩小**：新增 `gLevel` 画布（210×62，`pointer-events:none`，左上角），`alDrawLevel()` 分段色带 + 预警/告警标记 + 文字读数，**不遮挡主波形**。
+- **顶部中央经典环谱缩小**：`gRing` 改为 150×150 居顶中央显示，**不遮挡主波形**；`alDrawRing()` 按 `GUARD.state` 整环 + `boxShadow` 着色——**正常蓝 / 预警黄 / 告警红**，`guard-smoke` 实测告警态 `ringShadow=rgba(255,77,99,…)`。
+- **左上时钟美化**：`.gClock` 渐变边框/背景/阴影，`.gT` 渐变文字（`background-clip:text`）+ `tabular-nums`，时间走时更精致。
+- **媒体回放旋转**：摄像头拍照 `jpg` / 录像 `webm` 改走 `guardMediaOpen` 灯箱（替代 `window.open`），支持 **左转 90° / 复位 / 右转 90°**（`guardMediaRot` 累积旋转角），`gMedia` 遮罩 `z-index:50` 不挡交互。
+
+### 防回归（门禁全面过关）
+
+- `npm run qa` **44 / 44**：改名生效、大窗口居中不遮挡、auto 模式默认、`asrMode` 含 auto/cloud/local、Web Speech 兜底诚实标注。
+- `npm run guardsmoke` **25 / 25**（21 → 25）：新增 gLevel 画布尺寸、环谱告警整环变红、日志清空、媒体灯箱 DOM 齐备 7/7。
+- `npm run audiosmoke` **39 / 39**（37 → 39）：新增「默认模式为 auto」「auto 模式引擎探测完成」。
+- `npm run respgate` **34 / 34**：大窗口触控目标、值守台多视口无溢出。
+- `npm run check` 五阶段全绿（validate + 语法 + 算法自检 + 三处源码 MD5 一致 + 资源完整）。
+
+### 交付（MD5）
+
+- Windows 便携版（单文件）`AlphaSun-AudioLab-2.19.0-portable.exe`（68 MB）：`f5f568796b01db99f97482d1e2250c0a`
+- Linux x64 `AlphaSun-AudioLab-2.19.0-linux-x64.tar.gz`（99 MB）：`46c8a9acfafd1453eae1ffeb6f608625`
+- Android 自签 release `AlphaSun-AudioLab-2.19.0.apk`（6.0 MB，versionCode 34）：`951477c0725c0b5ca63d47096bf4950b`
+- `npm run sync` 三处源码 MD5 一致（根 / `www/` / Android assets）；`check.js` 五阶段全绿。
+- 门禁：`npm run qa` **44 / 44**；`npm run guardsmoke` **25 / 25**；`npm run audiosmoke` **39 / 39**；`npm run respgate` **34 / 34**。
+
+### 已知限制（诚实标注，非缺陷）
+
+- **macOS 版**：electron-builder「Build for macOS is supported only on macOS」——Windows 主机无法出 mac 包。
+- **iOS / iPad IPA**：需 macOS + Xcode + Apple Developer 账号签名，本环境完全不可为。
+- **auto 模式回退链**：无云端 Key 且本机未放 Vosk 离线模型时，自动降级为浏览器 Web Speech（需联网）；本地模式引擎探测对 Vosk 模型 404 并优雅回退，属预期。
+- 可选离线模型（Vosk 中/英文）未捆绑进测试环境，相关 404 已在门禁中过滤（非 JS 崩溃）。
+
 ## v2.18.0（2026-10-03）—— 音频工具集全按钮崩溃排查 + 触摸/响应式盲区补全 + 全平台打包
 
 ### 核心修复：会议转写「云端设置」按钮崩溃（unhandled rejection）
