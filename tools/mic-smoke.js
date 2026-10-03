@@ -116,6 +116,17 @@ function chk(name, ok, detail) {
   chk('反复 6 轮开关后回到停止态（会话无堆积、无异常）', churn.paused === true,
     'paused=' + churn.paused + ' capTxt=' + churn.capTxt);
 
+  // v2.23.2 关键回归：停止后不得残留 live 轨道（孤儿流）。
+  // 真实事故：start() 中途失败时 catch 不释放 stream/audioCtx，孤儿流一直占着麦克风，
+  // 且诊断只看 active 状态会误报「本应用未持有」→ 误诊两轮。
+  const orphan = await page.evaluate(() => {
+    const d = (typeof window.__micDiag === 'function') ? window.__micDiag() : null;
+    if (!d) return { skip: true };
+    return { live: d.filter(x => x.live).map(x => x.name + (x.orphan ? '(orphan)' : '')) };
+  });
+  chk('停止后无残留 live 轨道（无孤儿流占麦）', orphan.skip || orphan.live.length === 0,
+    orphan.skip ? '__micDiag 未注入' : ('live=' + (orphan.live.join(',') || '无')));
+
   // 依次验证 环境采集 / 值守 / 转写 在主采集刚停后都能启动（跨模块不残留）
   console.log('\n[4] 依次启动 环境采集 / 值守 / 转写（验证跨模块不互相锁死）');
   const openTool = async (name, mask) => {
