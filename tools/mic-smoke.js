@@ -169,6 +169,22 @@ function chk(name, ok, detail) {
   }));
   chk('语音转写可启动（录音链路存活、按钮态正确）', asr.stopEnabled,
     'timer=' + asr.timer + ' stopEnabled=' + asr.stopEnabled);
+
+  // v2.23.1 关键回归：关闭面板必须「先停采集再隐藏」。
+  // 真机事故：点 ✕ 关掉转写面板后 recog 仍在后台占麦克风 → 之后所有采集 NotReadableError。
+  // 断言：关闭面板后「开始转写」按钮恢复可点（= asrStop 已执行）。
+  console.log('\n[4.1] 关闭转写面板必须停止采集（v2.23.1 回归）');
+  await page.click('#asrClose');
+  await page.waitForTimeout(900);
+  const closed = await page.evaluate(() => ({
+    maskOn: document.getElementById('asrMask').classList.contains('on'),
+    startEnabled: !document.getElementById('asrStart').disabled,
+    stopDisabled: document.getElementById('asrStop').disabled,
+  }));
+  chk('点 ✕ 关闭转写面板后采集已停止（开始按钮恢复可点）',
+    !closed.maskOn && closed.startEnabled && closed.stopDisabled,
+    'maskOn=' + closed.maskOn + ' startEnabled=' + closed.startEnabled + ' stopDisabled=' + closed.stopDisabled);
+
   await page.click('#asrStop').catch(() => { }); await page.waitForTimeout(600);
   await page.click('#asrClose').catch(() => { }); await page.waitForTimeout(300);
 
